@@ -138,10 +138,10 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
     const maxUrgency = urgencyValues.length > 0 ? Math.max(...urgencyValues, 1) : 100
     const minUrgency = urgencyValues.length > 0 ? Math.min(...urgencyValues, 0) : 0
 
-    // Create color scale: light (low need) to red (high need)
+    // Create color scale: green (low need) to red (high need)
     const colorScale = d3.scaleSequential()
       .domain([minUrgency, maxUrgency])
-      .interpolator(d3.interpolateRgb('#f0f0f0', '#dc2626')) // Light gray to red
+      .interpolator(d3.interpolateRgb('#22c55e', '#dc2626')) // Green to red
 
     // Normalize district name helper
     const normalizeName = (name) => {
@@ -181,7 +181,7 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
         if (urgency !== undefined) {
           return colorScale(urgency)
         }
-        return '#f0f0f0' // Default light gray for districts without data
+        return '#22c55e' // Default green for districts without data (assume low need)
       })
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 0.5)
@@ -277,12 +277,12 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
         <div className="mb-3">
           <div className="text-xs font-semibold text-gray-700 mb-2">Need Score (District Color)</div>
           <div className="flex items-center space-x-2 mb-1">
-            <div className="w-6 h-4 rounded" style={{ background: '#f0f0f0', border: '1px solid #ccc' }}></div>
+            <div className="w-6 h-4 rounded" style={{ background: '#22c55e', border: '1px solid #ccc' }}></div>
             <span className="text-xs text-gray-600 flex-1">Low Need</span>
           </div>
           <div className="flex items-center space-x-2 mb-1">
             <div className="flex-1 h-4 rounded" style={{ 
-              background: 'linear-gradient(to right, #f0f0f0, #dc2626)' 
+              background: 'linear-gradient(to right, #22c55e, #dc2626)' 
             }}></div>
           </div>
           <div className="flex items-center space-x-2">
