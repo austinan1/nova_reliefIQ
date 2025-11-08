@@ -680,6 +680,31 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       <div ref={containerRef} className="w-full h-96 bg-gray-50 rounded-lg border border-gray-200 relative">
         <svg ref={svgRef} className="w-full h-full"></svg>
       
+      {/* Timeline */}
+      <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 bg-white rounded-lg shadow-lg p-4 z-10 border border-gray-200 min-w-[400px]">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Relief Timeline</div>
+          <div className="text-sm font-bold text-primary-600">
+            {currentStep === 0 ? 'Week 1' : currentStep === 1 ? 'Week 2' : currentStep === 2 ? 'Week 3' : currentStep === 3 ? 'Week 4' : `Month ${Math.floor(currentStep / 4) + 1}`}
+          </div>
+        </div>
+        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+          <div 
+            className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary-500 to-primary-700 transition-all duration-300"
+            style={{ width: `${Math.min((currentStep / 20) * 100, 100)}%` }}
+          ></div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-xs font-semibold text-gray-700">
+              {Math.min(currentStep, 20)} / 20 Steps
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+          <span>Initial Response</span>
+          <span>Full Coverage</span>
+        </div>
+      </div>
+
       {/* Step Controls */}
       <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 border border-gray-200">
         <div className="text-sm font-semibold text-gray-700 mb-3">Step: {currentStep}</div>
@@ -705,36 +730,36 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
 
       {/* Legend */}
       <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-4 z-10 border border-gray-200 max-w-xs">
-        <div className="text-sm font-semibold text-gray-700 mb-3">NGO Locations</div>
+        <div className="text-sm font-semibold text-gray-700 mb-3">Map Legend</div>
         
-        {/* Color scale legend */}
+        {/* Relief Status Color Scale */}
         <div className="mb-3">
-          <div className="text-xs font-semibold text-gray-700 mb-2">Base Color (Need Score)</div>
+          <div className="text-xs font-semibold text-gray-700 mb-2">Relief Status</div>
           <div className="flex items-center space-x-2 mb-1">
-            <div className="w-6 h-4 rounded" style={{ background: '#fecaca', border: '1px solid #ccc' }}></div>
-            <span className="text-xs text-gray-600 flex-1">Low Need (Light Red)</span>
+            <div className="w-6 h-4 rounded" style={{ background: '#dc2626', border: '1px solid #ccc' }}></div>
+            <span className="text-xs text-gray-600 flex-1">High Need (Red)</span>
           </div>
           <div className="flex items-center space-x-2 mb-1">
             <div className="flex-1 h-4 rounded" style={{ 
-              background: 'linear-gradient(to right, #fecaca, #dc2626)' 
+              background: 'linear-gradient(to right, #dc2626, #fecaca, #86efac, #22c55e)' 
             }}></div>
           </div>
           <div className="flex items-center space-x-2 mb-2">
-            <div className="w-6 h-4 rounded" style={{ background: '#dc2626', border: '1px solid #ccc' }}></div>
-            <span className="text-xs text-gray-600 flex-1">High Need (Dark Red)</span>
+            <div className="w-6 h-4 rounded" style={{ background: '#22c55e', border: '1px solid #ccc' }}></div>
+            <span className="text-xs text-gray-600 flex-1">✅ Fully Helped (Green)</span>
           </div>
-          <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
-            More NGOs = Less Red, More Green
+          <div className="text-xs text-green-600 font-semibold mt-2 pt-2 border-t border-gray-200">
+            🟢 More Green = Better Relief Coverage
           </div>
         </div>
 
         <div className="border-t border-gray-200 pt-3">
           <div className="flex items-center space-x-2 mb-2">
             <div className="w-4 h-4 rounded-full bg-blue-600 border-2 border-white"></div>
-            <span className="text-xs text-gray-600">Blue dots show exact locations</span>
+            <span className="text-xs text-gray-600">Blue dots = NGO locations</span>
           </div>
           <div className="text-xs text-gray-500">
-            Each NGO moves to next best-fit regions with each step
+            Regions become greener as NGOs provide relief
           </div>
         </div>
       </div>
