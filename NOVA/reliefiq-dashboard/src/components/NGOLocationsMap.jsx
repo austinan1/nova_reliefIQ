@@ -8,6 +8,10 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
   const [currentStep, setCurrentStep] = useState(0)
   // Track cumulative regions helped across all steps
   const [cumulativeRegionsHelped, setCumulativeRegionsHelped] = useState(new Set())
+  // Track randomly selected districts that become green as we approach 77
+  const [randomlyHelpedDistricts, setRandomlyHelpedDistricts] = useState(new Set())
+  // Save state for each step so we can go back
+  const [stepStates, setStepStates] = useState({})
 
   // Calculate NGO locations based on current step
   // Step 0 = top 5 districts, Step 1 = next 5 (6th-10th), Step 2 = next 5 (11th-15th), etc.
@@ -206,8 +210,30 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
     }
 
     // Helper function to get final color - shifts from red to green based on NGO count
-    // At maximum NGOs, should be fully green
-    const getColorWithGradient = (baseColor, ngoCount, maxNGOs) => {
+    // Also considers randomly helped districts as we approach 77
+    const getColorWithGradient = (baseColor, ngoCount, maxNGOs, districtName) => {
+      // Access current state values
+      const currentCount = cumulativeRegionsHelped.size
+      const targetCount = 77
+      const progress = Math.min(currentCount / targetCount, 1)
+      
+      // If we've reached 77, make everything fully green
+      if (progress >= 1) {
+        return '#22c55e' // Fully green
+      }
+      
+      // Check if this district is randomly helped
+      const isRandomlyHelped = randomlyHelpedDistricts.has(districtName)
+      
+      // If randomly helped, apply green based on progress toward 77
+      if (isRandomlyHelped) {
+        const greenProgress = progress
+        const colorScale = createNGOColorScale(baseColor, maxNGOs)
+        // Use progress to determine how green (0 = base red, 1 = full green)
+        return colorScale(greenProgress * maxNGOs)
+      }
+      
+      // Otherwise, use NGO count for coloring
       if (ngoCount === 0 || maxNGOs === 0) return baseColor
       
       // Normalize NGO count to 0-1 range
@@ -264,8 +290,8 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       // Get NGO count for current step - use fresh data from districtCountsMap
       const ngoCount = districtCountsMap.get(normalizedName) || 0
       
-      // Get color with gradient - more NGOs = more green
-      return getColorWithGradient(baseColor, ngoCount, maxCount)
+      // Get color with gradient - more NGOs = more green, also considers random helping
+      return getColorWithGradient(baseColor, ngoCount, maxCount, normalizedName)
     }
 
     // Draw district boundaries with colors: base (urgency) + green blend (NGO count)
@@ -292,8 +318,8 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
         // Get NGO count for current step
         const ngoCount = districtCountsMap.get(normalizedName) || 0
         
-        // Get color with gradient - more NGOs = more green
-        return getColorWithGradient(baseColor, ngoCount, maxCount)
+        // Get color with gradient - more NGOs = more green, also considers random helping
+        return getColorWithGradient(baseColor, ngoCount, maxCount, normalizedName)
       })
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 0.5)
@@ -471,7 +497,7 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
     return () => {
       window.removeEventListener('resize', handleResize)
     }
-  }, [geojson, ngoRegionScores, currentStep])
+  }, [geojson, ngoRegionScores, currentStep, cumulativeRegionsHelped, randomlyHelpedDistricts])
 
   if (!geojson) {
     return (
@@ -485,7 +511,17 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
   useEffect(() => {
     if (!ngoRegionScores || ngoRegionScores.length === 0) return
 
-    // Calculate districts for current step
+    // Check if we have saved state for this step - restore it
+    if (stepStates[currentStep]) {
+      setCumulativeRegionsHelped(new Set(stepStates[currentStep].cumulativeRegionsHelped))
+      setRandomlyHelpedDistricts(new Set(stepStates[currentStep].randomlyHelpedDistricts))
+      return
+    }
+
+    // Calculate cumulative regions helped up to this step
+    const allDistrictsUpToStep = new Set()
+    
+    // Calculate districts for all steps up to current step
     const ngoScores = {}
     ngoRegionScores.forEach(score => {
       const ngo = String(score.NGO).trim()
@@ -498,34 +534,96 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       })
     })
 
-    const ngoStepDistricts = {}
-    Object.keys(ngoScores).forEach(ngo => {
-      const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
-      const startIdx = currentStep * 5
-      const endIdx = startIdx + 5
-      const stepDistricts = sorted.slice(startIdx, endIdx)
-      ngoStepDistricts[ngo] = stepDistricts.map(d => d.district)
-    })
+    // Collect all districts from step 0 to currentStep
+    for (let step = 0; step <= currentStep; step++) {
+      Object.keys(ngoScores).forEach(ngo => {
+        const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
+        const startIdx = step * 5
+        const endIdx = startIdx + 5
+        const stepDistricts = sorted.slice(startIdx, endIdx)
+        stepDistricts.forEach(d => allDistrictsUpToStep.add(d.district))
+      })
+    }
 
-    const districtCounts = {}
-    Object.values(ngoStepDistricts).forEach(districts => {
-      districts.forEach(district => {
-        if (!districtCounts[district]) {
-          districtCounts[district] = 0
+    // Calculate deterministic helped districts for this cumulative count
+    const currentCount = allDistrictsUpToStep.size
+    const targetCount = 77
+    const progress = Math.min(currentCount / targetCount, 1)
+
+    // Get all districts with their NGO counts for deterministic selection
+    if (geojson && geojson.features) {
+      const districtsWithCounts = []
+      geojson.features.forEach(feature => {
+        const props = feature.properties
+        const normalizedName = normalizeDistrictName(
+          props.NAME || props.DISTRICT || props.name || props.district || ''
+        )
+        if (normalizedName) {
+          // Calculate deterministic hash based on district name
+          let hash = 0
+          for (let i = 0; i < normalizedName.length; i++) {
+            const char = normalizedName.charCodeAt(i)
+            hash = ((hash << 5) - hash) + char
+            hash = hash & hash // Convert to 32bit integer
+          }
+          
+          // Count NGOs in this district across all steps up to current
+          let ngoCount = 0
+          Object.keys(ngoScores).forEach(ngo => {
+            for (let step = 0; step <= currentStep; step++) {
+              const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
+              const startIdx = step * 5
+              const endIdx = startIdx + 5
+              const stepDistricts = sorted.slice(startIdx, endIdx)
+              if (stepDistricts.some(d => d.district === normalizedName)) {
+                ngoCount++
+              }
+            }
+          })
+          
+          // Deterministic score: hash + (NGO count * 1000) for consistent ordering
+          const deterministicScore = hash + (ngoCount * 1000)
+          districtsWithCounts.push({
+            name: normalizedName,
+            score: deterministicScore,
+            ngoCount: ngoCount
+          })
         }
-        districtCounts[district]++
       })
-    })
 
-    // Add current step's districts to cumulative set
-    setCumulativeRegionsHelped(prev => {
-      const newSet = new Set(prev)
-      Object.keys(districtCounts).forEach(district => {
-        newSet.add(district)
-      })
-      return newSet
-    })
-  }, [ngoRegionScores, currentStep])
+      // Sort deterministically by score (same order every time)
+      districtsWithCounts.sort((a, b) => a.score - b.score)
+
+      // Calculate how many districts should be helped
+      const totalDistricts = districtsWithCounts.length
+      const districtsToHelp = Math.floor(totalDistricts * progress)
+      const newHelpedDistricts = districtsWithCounts.slice(0, districtsToHelp).map(d => d.name)
+
+      // Update states and save
+      setCumulativeRegionsHelped(allDistrictsUpToStep)
+      setRandomlyHelpedDistricts(new Set(newHelpedDistricts))
+      
+      // Save state for this step
+      setStepStates(prevStates => ({
+        ...prevStates,
+        [currentStep]: {
+          cumulativeRegionsHelped: Array.from(allDistrictsUpToStep),
+          randomlyHelpedDistricts: newHelpedDistricts
+        }
+      }))
+    } else {
+      // Just update cumulative regions if no geojson yet
+      setCumulativeRegionsHelped(allDistrictsUpToStep)
+      setStepStates(prevStates => ({
+        ...prevStates,
+        [currentStep]: {
+          cumulativeRegionsHelped: Array.from(allDistrictsUpToStep),
+          randomlyHelpedDistricts: Array.from(randomlyHelpedDistricts)
+        }
+      }))
+    }
+  }, [ngoRegionScores, currentStep, stepStates, geojson])
+
 
   // Calculate relief statistics
   const reliefStats = useMemo(() => {
