@@ -685,7 +685,7 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
             {currentStep === 0 ? 'Week 1' : currentStep === 1 ? 'Week 2' : currentStep === 2 ? 'Week 3' : currentStep === 3 ? 'Week 4' : `Month ${Math.floor(currentStep / 4) + 1}`}
           </div>
         </div>
-        <div className="relative h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div className="relative h-[18px] bg-gray-200 rounded-full overflow-hidden">
           <div 
             className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary-500 to-primary-700 transition-all duration-300"
             style={{ width: `${Math.min((currentStep / 20) * 100, 100)}%` }}
