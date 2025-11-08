@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { generateChatResponse } from '../utils/aiClient'
+import { capitalizeDistrictName } from '../utils/formatUtils'
 
 const DistrictGuidance = ({ regionData, ngo, allData }) => {
   const [actionPlan, setActionPlan] = useState(null)
@@ -67,7 +68,7 @@ Urgency: ${regionData.urgency}/100`
     <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col overflow-hidden">
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h2 className="text-lg font-bold text-gray-800">How to Help: {regionData.district}</h2>
+          <h2 className="text-lg font-bold text-gray-800">How to Help: {capitalizeDistrictName(regionData.district)}</h2>
           <p className="text-sm text-gray-600 mt-1">Volunteer Action Plan for {ngo}</p>
         </div>
         <button

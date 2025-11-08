@@ -400,15 +400,18 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       })
 
     // Blue circle for each location
-    markerGroups.append('circle')
-      .attr('r', d => Math.max(8, Math.min(20, 8 + d.ngoCount * 2))) // Size based on count
+    const circles = markerGroups.append('circle')
+      .attr('r', 0) // Start at 0 for entrance animation
       .attr('fill', '#2563eb') // Blue
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 2)
-      .attr('opacity', 0.8)
+      .attr('opacity', 0) // Start invisible for entrance animation
       .style('cursor', 'pointer')
       .on('mouseover', function(event, d) {
         d3.select(this)
+          .transition()
+          .duration(300)
+          .ease(d3.easeQuadOut)
           .attr('opacity', 1)
           .attr('r', d => Math.max(10, Math.min(22, 10 + d.ngoCount * 2)))
         
@@ -453,27 +456,21 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       })
       .on('mouseout', function(event, d) {
         d3.select(this)
+          .transition()
+          .duration(300)
+          .ease(d3.easeQuadOut)
           .attr('opacity', 0.8)
           .attr('r', d => Math.max(8, Math.min(20, 8 + d.ngoCount * 2)))
         
         d3.select('.map-tooltip').remove()
       })
 
-    // Labels showing NGO count
-    markerGroups.append('text')
-      .attr('text-anchor', 'middle')
-      .attr('dy', d => Math.max(8, Math.min(20, 8 + d.ngoCount * 2)) + 15)
-      .attr('font-size', '12px')
-      .attr('font-weight', 'bold')
-      .attr('fill', '#1e40af')
-      .attr('stroke', '#ffffff')
-      .attr('stroke-width', '0.5px')
-      .attr('paint-order', 'stroke')
-      .text(d => {
-        const count = d.ngoCount
-        return `${count} ${count === 1 ? 'NGO' : 'NGOs'} here`
-      })
-      .style('pointer-events', 'none')
+    // Animate entrance with elastic bounce effect
+    circles.transition()
+      .duration(600)
+      .ease(d3.easeElasticOut)
+      .attr('r', d => Math.max(8, Math.min(20, 8 + d.ngoCount * 2))) // Size based on count
+      .attr('opacity', 0.8)
 
     // Handle window resize
     const handleResize = () => {
@@ -677,7 +674,7 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
 
   return (
     <div className="w-full">
-      <div ref={containerRef} className="w-full h-96 bg-gray-50 rounded-lg border border-gray-200 relative">
+      <div ref={containerRef} className="w-full h-[534px] bg-gray-50 rounded-lg border border-gray-200 relative">
         <svg ref={svgRef} className="w-full h-full"></svg>
       
       {/* Timeline */}

@@ -170,27 +170,6 @@ const MetricsPanel = ({ metrics, nearbyNGOs, ongoingTasks }) => {
           </div>
         </div>
       </div>
-
-      {/* Nearby NGOs */}
-      {nearbyNGOs && nearbyNGOs.length > 0 && (
-        <div className="bg-white rounded-lg shadow-md p-4 mt-4">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Nearby NGOs</h3>
-          <div className="space-y-2">
-            {nearbyNGOs.slice(0, 5).map((ngo, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{ngo.name}</p>
-                  <p className="text-xs text-gray-500">{ngo.contact}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-600">Match: {ngo.match_score.toFixed(0)}%</p>
-                  <p className="text-xs text-gray-600">Urgency: {ngo.urgency.toFixed(0)}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -174,7 +174,7 @@ const VipApp = () => {
 
           {/* Main Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
-            {/* Left Column - To-Do Panel & Real-Time Monitoring */}
+            {/* Left Column - To-Do Panel & Operations Analyst Chat */}
             <div className="lg:col-span-1 space-y-6">
               <div className="h-[500px]">
                 <ToDoPanel
@@ -183,10 +183,12 @@ const VipApp = () => {
                   onTasksUpdate={handleTasksUpdate}
                 />
               </div>
-              <div className="h-[500px]">
-                <RealTimeMonitoring
-                  selectedRegion={selectedRegion}
+              <div className="h-[700px]">
+                <ChatPanel
                   regionData={regionData}
+                  ngo={selectedNGO}
+                  metrics={regionData}
+                  allData={data}
                 />
               </div>
             </div>
@@ -206,7 +208,7 @@ const VipApp = () => {
                   </div>
                 </div>
               </div>
-              <div className="h-[500px]">
+              <div className="h-[700px]">
                 <DistrictGuidance
                   regionData={regionData}
                   ngo={selectedNGO}
@@ -215,20 +217,18 @@ const VipApp = () => {
               </div>
             </div>
 
-            {/* Right Column - Chat & Image Analyzer */}
+            {/* Right Column - Real-Time Monitoring & Image Analyzer */}
             <div className="lg:col-span-1 space-y-6">
-              {/* Chat Panel */}
+              {/* Real-Time Monitoring */}
               <div className="h-[500px]">
-                <ChatPanel
+                <RealTimeMonitoring
+                  selectedRegion={selectedRegion}
                   regionData={regionData}
-                  ngo={selectedNGO}
-                  metrics={regionData}
-                  allData={data}
                 />
               </div>
 
               {/* Image Analyzer */}
-              <div className="h-[500px]">
+              <div className="h-[700px]">
                 <ImageAnalyzer
                   regionData={regionData}
                   metrics={regionData}
@@ -236,6 +236,29 @@ const VipApp = () => {
               </div>
             </div>
           </div>
+
+          {/* Nearby NGOs - At the very bottom */}
+          {nearbyNGOs && nearbyNGOs.length > 0 && (
+            <div className="px-6 pb-6">
+              <div className="bg-white rounded-lg shadow-md p-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Nearby NGOs</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {nearbyNGOs.slice(0, 5).map((ngo, index) => (
+                    <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{ngo.name}</p>
+                        <p className="text-xs text-gray-500 mt-1">{ngo.contact}</p>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="text-xs text-gray-600">Match: {ngo.match_score.toFixed(0)}%</p>
+                        <p className="text-xs text-gray-600">Urgency: {ngo.urgency.toFixed(0)}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

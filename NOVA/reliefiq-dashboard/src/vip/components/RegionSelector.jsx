@@ -1,10 +1,11 @@
 import React from 'react'
 import Select from 'react-select'
+import { capitalizeDistrictName } from '../utils/formatUtils'
 
 const RegionSelector = ({ regions, selectedRegion, onSelectRegion }) => {
   const options = regions.map(region => ({
     value: region,
-    label: region.charAt(0).toUpperCase() + region.slice(1)
+    label: capitalizeDistrictName(region)
   }))
 
   const customStyles = {
@@ -44,7 +45,7 @@ const RegionSelector = ({ regions, selectedRegion, onSelectRegion }) => {
       <Select
         value={selectedRegion ? {
           value: selectedRegion,
-          label: selectedRegion.charAt(0).toUpperCase() + selectedRegion.slice(1)
+          label: capitalizeDistrictName(selectedRegion)
         } : null}
         onChange={(option) => onSelectRegion(option?.value || null)}
         options={options}

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { normalizeDistrictName } from '../utils/dataLoader'
+import { capitalizeDistrictName } from '../utils/formatUtils'
 
 const SituationalMap = ({ geojson, selectedRegion, regionData, nearbyNGOs }) => {
   const svgRef = useRef()
@@ -205,7 +206,7 @@ const SituationalMap = ({ geojson, selectedRegion, regionData, nearbyNGOs }) => 
           .style('font-size', '12px')
           .style('box-shadow', '0 4px 6px rgba(0, 0, 0, 0.3)')
           .html(`
-            <strong>${props.NAME || props.DISTRICT || props.name || props.district || 'Unknown'}</strong>
+            <strong>${capitalizeDistrictName(props.NAME || props.DISTRICT || props.name || props.district || 'Unknown')}</strong>
           `)
 
         tooltip.transition()
