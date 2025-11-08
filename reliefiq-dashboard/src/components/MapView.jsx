@@ -7,67 +7,89 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
   const svgRef = useRef()
   const containerRef = useRef()
   const zoomRef = useRef()
+  const zoomTransformRef = useRef(null)
+  const isInitializedRef = useRef(false)
 
   useEffect(() => {
     if (!geojson || !data || !svgRef.current || !containerRef.current) return
 
     const svg = d3.select(svgRef.current)
-    svg.selectAll('*').remove()
+    
+    // Only redraw the map if it hasn't been initialized yet or if data/geojson changed
+    const needsRedraw = !isInitializedRef.current || 
+                       svg.selectAll('path.district').size() === 0
 
-    const width = containerRef.current.clientWidth
-    const height = containerRef.current.clientHeight
+    if (needsRedraw) {
+      svg.selectAll('*').remove()
 
-    svg.attr('width', width).attr('height', height)
+      const width = containerRef.current.clientWidth
+      const height = containerRef.current.clientHeight
 
-    // Create projection for Nepal
-    const projection = d3.geoMercator()
-      .center([84.1240, 28.3949]) // Nepal center
-      .scale(3000)
-      .translate([width / 2, height / 2])
+      svg.attr('width', width).attr('height', height)
 
-    const path = d3.geoPath().projection(projection)
+      // Create projection for Nepal
+      const projection = d3.geoMercator()
+        .center([84.1240, 28.3949]) // Nepal center
+        .scale(3000)
+        .translate([width / 2, height / 2])
 
-    // Create zoom behavior
-    const zoom = d3.zoom()
-      .scaleExtent([0.5, 8])
-      .on('zoom', (event) => {
-        svg.selectAll('path.district')
-          .attr('transform', event.transform)
+      const path = d3.geoPath().projection(projection)
+
+      // Create zoom behavior
+      const zoom = d3.zoom()
+        .scaleExtent([0.5, 8])
+        .filter(function(event) {
+          // Allow wheel zoom and drag zoom, but prevent double-click zoom
+          return event.type !== 'dblclick'
+        })
+        .on('zoom', (event) => {
+          // Store the current zoom transform
+          zoomTransformRef.current = event.transform
+          svg.selectAll('path.district')
+            .attr('transform', event.transform)
+        })
+
+      svg.call(zoom)
+      
+      // Restore previous zoom transform if it exists
+      if (zoomTransformRef.current) {
+        svg.call(zoom.transform, zoomTransformRef.current)
+      }
+      
+      // Prevent double-click zoom
+      svg.on('dblclick.zoom', null)
+
+      // Normalize district names for matching
+      const normalizeName = (name) => {
+        if (!name) return ''
+        return String(name).trim().toLowerCase()
+      }
+
+      // Create a map of district data
+      const dataMap = new Map()
+      data.forEach(d => {
+        dataMap.set(normalizeName(d.district), d)
       })
 
-    svg.call(zoom)
+      // Find top 5 best matches
+      const top5Districts = [...data]
+        .map(d => ({
+          district: d.district,
+          match: d.match <= 1 ? d.match * 100 : d.match
+        }))
+        .sort((a, b) => b.match - a.match)
+        .slice(0, 5)
+        .map(d => normalizeName(d.district))
+      
+      const top5Set = new Set(top5Districts)
 
-    // Normalize district names for matching
-    const normalizeName = (name) => {
-      if (!name) return ''
-      return String(name).trim().toLowerCase()
-    }
-
-    // Create a map of district data
-    const dataMap = new Map()
-    data.forEach(d => {
-      dataMap.set(normalizeName(d.district), d)
-    })
-
-    // Find top 5 best matches
-    const top5Districts = [...data]
-      .map(d => ({
-        district: d.district,
-        match: d.match <= 1 ? d.match * 100 : d.match
-      }))
-      .sort((a, b) => b.match - a.match)
-      .slice(0, 5)
-      .map(d => normalizeName(d.district))
-    
-    const top5Set = new Set(top5Districts)
-
-    // Draw districts
-    const districts = svg.selectAll('path.district')
-      .data(geojson.features)
-      .enter()
-      .append('path')
-      .attr('class', 'district')
-      .attr('d', path)
+      // Draw districts
+      const districts = svg.selectAll('path.district')
+        .data(geojson.features)
+        .enter()
+        .append('path')
+        .attr('class', 'district')
+        .attr('d', path)
       .attr('fill', d => {
         const props = d.properties
         const normalizedName = props.normalized_name || normalizeName(props.NAME || props.DISTRICT || props.name || props.district || '')
@@ -183,6 +205,7 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
         d3.select('.map-tooltip').remove()
       })
       .on('click', function(event, d) {
+        event.stopPropagation() // Prevent zoom on click
         const props = d.properties
         const normalizedName = props.normalized_name || normalizeName(props.NAME || props.DISTRICT || props.name || props.district || '')
         const districtData = dataMap.get(normalizedName)
@@ -191,14 +214,41 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
           onDistrictClick(districtData)
         }
       })
+      
+      isInitializedRef.current = true
+    }
+
+    // Update district styling when selectedDistrict changes (without redrawing)
+    const normalizeName = (name) => {
+      if (!name) return ''
+      return String(name).trim().toLowerCase()
+    }
+
+    // Create a map of district data
+    const dataMap = new Map()
+    data.forEach(d => {
+      dataMap.set(normalizeName(d.district), d)
+    })
+
+    // Find top 5 best matches
+    const top5Districts = [...data]
+      .map(d => ({
+        district: d.district,
+        match: d.match <= 1 ? d.match * 100 : d.match
+      }))
+      .sort((a, b) => b.match - a.match)
+      .slice(0, 5)
+      .map(d => normalizeName(d.district))
+    
+    const top5Set = new Set(top5Districts)
 
     // Highlight selected district (override top 5 styling)
-    if (selectedDistrict) {
+    if (isInitializedRef.current) {
       svg.selectAll('path.district')
         .attr('stroke', (d, i) => {
           const props = d.properties
           const normalizedName = props.normalized_name || normalizeName(props.NAME || props.DISTRICT || props.name || props.district || '')
-          if (normalizeName(selectedDistrict.district) === normalizedName) {
+          if (selectedDistrict && normalizeName(selectedDistrict.district) === normalizedName) {
             return '#ff6b6b' // Red for selected
           }
           // Restore top 5 styling for non-selected
@@ -210,7 +260,7 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
         .attr('stroke-width', (d, i) => {
           const props = d.properties
           const normalizedName = props.normalized_name || normalizeName(props.NAME || props.DISTRICT || props.name || props.district || '')
-          if (normalizeName(selectedDistrict.district) === normalizedName) {
+          if (selectedDistrict && normalizeName(selectedDistrict.district) === normalizedName) {
             return 4 // Thick border for selected
           }
           // Restore top 5 styling for non-selected
