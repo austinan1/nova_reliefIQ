@@ -7,6 +7,8 @@ import ToDoPanel from './components/ToDoPanel'
 import ChatPanel from './components/ChatPanel'
 import ImageAnalyzer from './components/ImageAnalyzer'
 import SituationalMap from './components/SituationalMap'
+import RealTimeMonitoring from './components/RealTimeMonitoring'
+import DistrictGuidance from './components/DistrictGuidance'
 import './styles/vip.css'
 
 const VipApp = () => {
@@ -120,9 +122,9 @@ const VipApp = () => {
     : (data.ngos || [])
 
   return (
-    <div className="vip-app h-screen flex flex-col bg-gray-50 overflow-hidden">
+    <div className="vip-app h-screen flex flex-col bg-gray-50 overflow-y-auto">
       {/* Header Section */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
+      <div className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-800">Volunteer Information Platform</h1>
@@ -148,7 +150,7 @@ const VipApp = () => {
 
       {/* Show blank state until both region and NGO are selected */}
       {!selectedRegion || !selectedNGO ? (
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="flex-1 flex items-center justify-center bg-gray-50 min-h-0">
           <div className="text-center max-w-md px-6">
             <div className="text-6xl mb-4">📍</div>
             <h2 className="text-2xl font-bold text-gray-800 mb-2">Select Region & NGO</h2>
@@ -158,7 +160,7 @@ const VipApp = () => {
           </div>
         </div>
       ) : (
-        <>
+        <div className="flex-1 min-h-0 overflow-y-auto">
           {/* Metrics Panel */}
           {regionData && (
             <div className="px-6 py-4 bg-white border-b border-gray-200">
@@ -171,44 +173,62 @@ const VipApp = () => {
           )}
 
           {/* Main Content Grid */}
-          <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 p-6 overflow-hidden">
-            {/* Left Column - To-Do Panel */}
-            <div className="lg:col-span-1 overflow-hidden">
-              <ToDoPanel
-                regionData={regionData}
-                ngo={selectedNGO}
-                onTasksUpdate={handleTasksUpdate}
-              />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+            {/* Left Column - To-Do Panel & Real-Time Monitoring */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="h-[500px]">
+                <ToDoPanel
+                  regionData={regionData}
+                  ngo={selectedNGO}
+                  onTasksUpdate={handleTasksUpdate}
+                />
+              </div>
+              <div className="h-[500px]">
+                <RealTimeMonitoring
+                  selectedRegion={selectedRegion}
+                  regionData={regionData}
+                />
+              </div>
             </div>
 
-            {/* Middle Column - Map */}
-            <div className="lg:col-span-1 overflow-hidden">
-              <div className="bg-white rounded-lg shadow-md p-4 h-full flex flex-col">
-                <h2 className="text-lg font-bold text-gray-800 mb-4">Situational Awareness Map</h2>
-                <div className="flex-1 overflow-hidden">
-                  <SituationalMap
-                    geojson={data.geojson}
-                    selectedRegion={selectedRegion}
-                    regionData={regionData}
-                    nearbyNGOs={nearbyNGOs}
-                  />
+            {/* Middle Column - Map & District Guidance */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="h-[500px]">
+                <div className="bg-white rounded-lg shadow-md p-4 h-full flex flex-col">
+                  <h2 className="text-lg font-bold text-gray-800 mb-4">Situational Awareness Map</h2>
+                  <div className="flex-1 overflow-hidden">
+                    <SituationalMap
+                      geojson={data.geojson}
+                      selectedRegion={selectedRegion}
+                      regionData={regionData}
+                      nearbyNGOs={nearbyNGOs}
+                    />
+                  </div>
                 </div>
+              </div>
+              <div className="h-[500px]">
+                <DistrictGuidance
+                  regionData={regionData}
+                  ngo={selectedNGO}
+                  allData={data}
+                />
               </div>
             </div>
 
             {/* Right Column - Chat & Image Analyzer */}
-            <div className="lg:col-span-1 space-y-6 overflow-hidden flex flex-col">
+            <div className="lg:col-span-1 space-y-6">
               {/* Chat Panel */}
-              <div className="flex-1 overflow-hidden min-h-0">
+              <div className="h-[500px]">
                 <ChatPanel
                   regionData={regionData}
                   ngo={selectedNGO}
                   metrics={regionData}
+                  allData={data}
                 />
               </div>
 
               {/* Image Analyzer */}
-              <div className="flex-1 overflow-hidden min-h-0">
+              <div className="h-[500px]">
                 <ImageAnalyzer
                   regionData={regionData}
                   metrics={regionData}
@@ -216,7 +236,7 @@ const VipApp = () => {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
     </div>
   )

@@ -70,7 +70,7 @@ const ImageAnalyzer = ({ regionData, metrics }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col">
+    <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col overflow-hidden">
       <h2 className="text-lg font-bold text-gray-800 mb-4">Image Analyzer</h2>
 
       {!regionData ? (

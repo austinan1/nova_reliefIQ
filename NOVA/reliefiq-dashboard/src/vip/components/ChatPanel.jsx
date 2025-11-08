@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
-import { generateChatResponse } from '../utils/aiClient'
+import { generateChatResponse, fetchTasks } from '../utils/aiClient'
 
-const ChatPanel = ({ regionData, ngo, metrics }) => {
+const ChatPanel = ({ regionData, ngo, metrics, allData }) => {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,10 +58,35 @@ const ChatPanel = ({ regionData, ngo, metrics }) => {
 
     try {
       const context = buildContext()
-      const response = await generateChatResponse(userMessage, context)
-
-      // Add assistant response
-      setMessages([...newMessages, { role: 'assistant', content: response }])
+      
+      // Handle task-related queries by fetching from localStorage
+      if (userMessage.toLowerCase().includes('pending volunteer tasks') || 
+          userMessage.toLowerCase().includes('my tasks') ||
+          userMessage.toLowerCase().includes('list my tasks')) {
+        try {
+          const tasks = fetchTasks(regionData?.district, ngo)
+          if (tasks && tasks.length > 0) {
+            const taskList = tasks.map((t, idx) => 
+              `${idx + 1}. [${t.priority}] ${t.description} (Status: ${t.status})`
+            ).join('\n')
+            const response = `Here are your pending volunteer tasks:\n\n${taskList}\n\nTotal: ${tasks.length} task(s)`
+            setMessages([...newMessages, { role: 'assistant', content: response }])
+          } else {
+            setMessages([...newMessages, { 
+              role: 'assistant', 
+              content: 'No pending tasks found. You can create new tasks in the To-Do panel.' 
+            }])
+          }
+        } catch (err) {
+          // Fallback to AI response if fetch fails
+          const response = await generateChatResponse(userMessage, context, regionData, ngo, allData)
+          setMessages([...newMessages, { role: 'assistant', content: response }])
+        }
+      } else {
+        // Regular AI chat response with enhanced context
+        const response = await generateChatResponse(userMessage, context, regionData, ngo, allData)
+        setMessages([...newMessages, { role: 'assistant', content: response }])
+      }
     } catch (err) {
       console.error('[VIP] Error generating chat response:', err)
       setError(err.message)
@@ -82,7 +107,7 @@ const ChatPanel = ({ regionData, ngo, metrics }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col">
+    <div className="bg-white rounded-lg shadow-md p-6 h-full flex flex-col overflow-hidden">
       <h2 className="text-lg font-bold text-gray-800 mb-4">Operations Analyst Chat</h2>
 
       {!regionData || !ngo ? (
@@ -96,11 +121,13 @@ const ChatPanel = ({ regionData, ngo, metrics }) => {
             {messages.length === 0 && (
               <div className="text-center text-gray-500 py-8">
                 <p className="mb-2">Ask me anything about logistics, health, forecasting, or analysis.</p>
-                <p className="text-sm">Examples:</p>
+                <p className="text-sm">Example commands:</p>
                 <ul className="text-sm text-left mt-2 space-y-1 max-w-md mx-auto">
-                  <li>• "Rank all districts by urgency-weighted damage index"</li>
-                  <li>• "Forecast food shortages based on current delivery rate"</li>
-                  <li>• "Explain why Far-Western Nepal remains underfunded"</li>
+                  <li>• "Show current situation in [District]"</li>
+                  <li>• "Which NGO is best positioned for [District]?"</li>
+                  <li>• "List my pending volunteer tasks"</li>
+                  <li>• "Upload a photo of blocked highway — suggest alternate route"</li>
+                  <li>• "What are the urgent needs in this region?"</li>
                 </ul>
               </div>
             )}
