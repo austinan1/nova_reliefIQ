@@ -238,7 +238,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
             {/* Most Covered Districts */}
             <div>
               <h4 className="text-xl font-semibold text-green-600 mb-4 pb-2 border-b border-gray-200">
-                Most Covered Districts (Top 10)
+                Most Covered Districts (Top 4)
               </h4>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -253,7 +253,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {summaryStats.mostCoveredDistricts.map((d, idx) => (
+                    {summaryStats.mostCoveredDistricts.slice(0, 4).map((d, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap font-medium text-green-600">{d.district}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{d.ngoCount}</td>
@@ -263,6 +263,13 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-primary-600">{d.bestNGO}</td>
                       </tr>
                     ))}
+                    {summaryStats.mostCoveredDistricts.length > 4 && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="6" className="px-4 py-3 text-center text-sm italic text-gray-600">
+                          and {summaryStats.mostCoveredDistricts.length - 4} more not listed
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -271,7 +278,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
             {/* Least Covered Districts */}
             <div>
               <h4 className="text-xl font-semibold text-red-600 mb-4 pb-2 border-b border-gray-200">
-                Least Covered Districts (Bottom 10)
+                Least Covered Districts (Bottom 4)
               </h4>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -286,7 +293,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {summaryStats.leastCoveredDistricts.map((d, idx) => (
+                    {summaryStats.leastCoveredDistricts.slice(0, 4).map((d, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap font-medium text-red-600">{d.district}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{d.ngoCount}</td>
@@ -296,6 +303,13 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-primary-600">{d.bestNGO}</td>
                       </tr>
                     ))}
+                    {summaryStats.leastCoveredDistricts.length > 4 && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="6" className="px-4 py-3 text-center text-sm italic text-gray-600">
+                          and {summaryStats.leastCoveredDistricts.length - 4} more not listed
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -316,7 +330,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
             {/* Most Active NGOs */}
             <div>
               <h4 className="text-xl font-semibold text-green-600 mb-4 pb-2 border-b border-gray-200">
-                Most Active NGOs (Top 10)
+                Most Active NGOs (Top 4)
               </h4>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -331,7 +345,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {summaryStats.mostActiveNGOs.map((n, idx) => (
+                    {summaryStats.mostActiveNGOs.slice(0, 4).map((n, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap font-medium text-primary-600">{n.ngo}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{n.districtCount}</td>
@@ -344,6 +358,13 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                         </td>
                       </tr>
                     ))}
+                    {summaryStats.mostActiveNGOs.length > 4 && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="6" className="px-4 py-3 text-center text-sm italic text-gray-600">
+                          and {summaryStats.mostActiveNGOs.length - 4} more not listed
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -352,7 +373,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
             {/* Least Active NGOs */}
             <div>
               <h4 className="text-xl font-semibold text-orange-600 mb-4 pb-2 border-b border-gray-200">
-                Least Active NGOs (Bottom 10)
+                Least Active NGOs (Bottom 4)
               </h4>
               <div className="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200">
@@ -367,7 +388,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {summaryStats.leastActiveNGOs.map((n, idx) => (
+                    {summaryStats.leastActiveNGOs.slice(0, 4).map((n, idx) => (
                       <tr key={idx} className="hover:bg-gray-50">
                         <td className="px-4 py-3 whitespace-nowrap font-medium text-primary-600">{n.ngo}</td>
                         <td className="px-4 py-3 whitespace-nowrap">{n.districtCount}</td>
@@ -380,6 +401,13 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
                         </td>
                       </tr>
                     ))}
+                    {summaryStats.leastActiveNGOs.length > 4 && (
+                      <tr className="bg-gray-50">
+                        <td colSpan="6" className="px-4 py-3 text-center text-sm italic text-gray-600">
+                          and {summaryStats.leastActiveNGOs.length - 4} more not listed
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>

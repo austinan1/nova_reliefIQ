@@ -302,15 +302,54 @@ export const simulateRecovery = (districts, ngoRegionScores, maxMonths = 60) => 
 }
 
 /**
- * Get color for recovery score
+ * Get color for recovery score with gradient
+ * Red: 0-30%, Yellow: 31-70%, Green: 71-100%
  */
 export const getRecoveryColor = (recoveryScore) => {
-  const damageLevel = 100 - recoveryScore
+  // Clamp recovery score between 0 and 100
+  const score = Math.max(0, Math.min(100, recoveryScore))
   
-  if (damageLevel >= 75) return '#d73027' // Red - severe
-  if (damageLevel >= 50) return '#fee08b' // Yellow - moderate
-  if (damageLevel >= 25) return '#66bd63' // Light green - recovering
-  return '#3288bd' // Blue - well recovered
+  // Red to Yellow gradient (0-30% recovery)
+  if (score <= 30) {
+    if (score <= 0) return '#d73027' // Pure red at 0%
+    if (score >= 30) return '#fee08b' // Pure yellow at 30%
+    
+    // Gradient between red and yellow
+    const ratio = score / 30
+    const r = Math.round(253 - (253 - 254) * ratio) // 253 -> 254
+    const g = Math.round(48 + (224 - 48) * ratio)   // 48 -> 224
+    const b = Math.round(39 + (139 - 39) * ratio)   // 39 -> 139
+    return `rgb(${r}, ${g}, ${b})`
+  }
+  
+  // Yellow to Green gradient (31-70% recovery)
+  if (score <= 70) {
+    if (score <= 31) return '#fee08b' // Pure yellow at 31%
+    if (score >= 70) return '#66bd63' // Pure green at 70%
+    
+    // Gradient between yellow and green
+    const ratio = (score - 31) / (70 - 31) // Normalize to 0-1 for 31-70 range
+    const r = Math.round(254 - (102 - 254) * ratio) // 254 -> 102
+    const g = Math.round(224 + (189 - 224) * ratio)   // 224 -> 189
+    const b = Math.round(139 - (99 - 139) * ratio)   // 139 -> 99
+    return `rgb(${r}, ${g}, ${b})`
+  }
+  
+  // Green gradient (71-100% recovery) - darker green as recovery increases
+  if (score <= 100) {
+    if (score <= 71) return '#66bd63' // Light green at 71%
+    if (score >= 100) return '#1a9850' // Dark green at 100%
+    
+    // Gradient to darker green
+    const ratio = (score - 71) / (100 - 71) // Normalize to 0-1 for 71-100 range
+    const r = Math.round(102 - (26 - 102) * ratio)   // 102 -> 26
+    const g = Math.round(189 - (152 - 189) * ratio)  // 189 -> 152
+    const b = Math.round(99 - (80 - 99) * ratio)     // 99 -> 80
+    return `rgb(${r}, ${g}, ${b})`
+  }
+  
+  // Fallback (shouldn't reach here)
+  return '#66bd63'
 }
 
 /**
