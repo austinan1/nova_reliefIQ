@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { fetchTasks, createTask, updateTask, deleteTask } from '../utils/aiClient'
+import { fetchTasks, createTask, updateTask, deleteTask, generateTasks } from '../utils/aiClient'
 
 const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
   const [tasks, setTasks] = useState([])
@@ -11,6 +11,10 @@ const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
     priority: 'Medium',
     due_date: ''
   })
+  const [aiSuggestions, setAiSuggestions] = useState([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [showAiSuggestions, setShowAiSuggestions] = useState(false)
+  const [selectedSuggestions, setSelectedSuggestions] = useState(new Set())
 
   useEffect(() => {
     if (regionData && ngo) {
@@ -40,6 +44,7 @@ const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
       setLoading(false)
     }
   }
+
 
   const handleAddTask = () => {
     if (!newTask.description.trim() || !regionData || !ngo) return
@@ -76,13 +81,96 @@ const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
   }
 
   const handleDeleteTask = (taskId) => {
-    if (!window.confirm('Are you sure you want to delete this task?')) return
-
     try {
       deleteTask(taskId)
       loadTasks()
     } catch (err) {
       console.error('[VIP] Error deleting task:', err)
+      setError(err.message)
+    }
+  }
+
+  const handleGenerateAISuggestions = async () => {
+    if (!regionData || !ngo) return
+
+    setLoadingSuggestions(true)
+    setError(null)
+
+    try {
+      const suggestedTasks = await generateTasks(regionData, ngo)
+      setAiSuggestions(suggestedTasks)
+      setShowAiSuggestions(true)
+      setSelectedSuggestions(new Set(suggestedTasks.map((_, index) => index)))
+    } catch (err) {
+      console.error('[VIP] Error generating AI suggestions:', err)
+      setError(err.message)
+    } finally {
+      setLoadingSuggestions(false)
+    }
+  }
+
+  const handleToggleSuggestion = (index) => {
+    const newSelected = new Set(selectedSuggestions)
+    if (newSelected.has(index)) {
+      newSelected.delete(index)
+    } else {
+      newSelected.add(index)
+    }
+    setSelectedSuggestions(newSelected)
+  }
+
+  const handleAddSelectedSuggestions = () => {
+    if (!regionData || !ngo || selectedSuggestions.size === 0) return
+
+    try {
+      const tasksToAdd = aiSuggestions
+        .filter((_, index) => selectedSuggestions.has(index))
+        .map(suggestion => ({
+          region: regionData.district,
+          assigned_to: ngo,
+          description: suggestion.task,
+          priority: suggestion.priority || 'Medium',
+          status: 'pending',
+          due_date: null
+        }))
+
+      tasksToAdd.forEach(taskData => {
+        createTask(taskData)
+      })
+
+      setShowAiSuggestions(false)
+      setAiSuggestions([])
+      setSelectedSuggestions(new Set())
+      loadTasks()
+    } catch (err) {
+      console.error('[VIP] Error adding suggested tasks:', err)
+      setError(err.message)
+    }
+  }
+
+  const handleAddAllSuggestions = () => {
+    if (!regionData || !ngo || aiSuggestions.length === 0) return
+
+    try {
+      const tasksToAdd = aiSuggestions.map(suggestion => ({
+        region: regionData.district,
+        assigned_to: ngo,
+        description: suggestion.task,
+        priority: suggestion.priority || 'Medium',
+        status: 'pending',
+        due_date: null
+      }))
+
+      tasksToAdd.forEach(taskData => {
+        createTask(taskData)
+      })
+
+      setShowAiSuggestions(false)
+      setAiSuggestions([])
+      setSelectedSuggestions(new Set())
+      loadTasks()
+    } catch (err) {
+      console.error('[VIP] Error adding all suggested tasks:', err)
       setError(err.message)
     }
   }
@@ -116,6 +204,14 @@ const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
         <h2 className="text-lg font-bold text-gray-800">Volunteer To-Do List</h2>
         <div className="flex space-x-2">
           <button
+            onClick={handleGenerateAISuggestions}
+            disabled={loadingSuggestions}
+            className="px-3 py-1 text-sm bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            title="Get AI-suggested tasks"
+          >
+            {loadingSuggestions ? '...' : '🤖 AI Suggest'}
+          </button>
+          <button
             onClick={() => setShowAddForm(!showAddForm)}
             className="px-3 py-1 text-sm bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
           >
@@ -130,6 +226,77 @@ const ToDoPanel = ({ regionData, ngo, onTasksUpdate }) => {
           </button>
         </div>
       </div>
+
+      {/* AI Suggestions Section */}
+      {showAiSuggestions && aiSuggestions.length > 0 && (
+        <div className="mb-4 p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-purple-800 flex items-center">
+              <span className="mr-2">🤖</span>
+              AI-Suggested Tasks ({aiSuggestions.length})
+            </h3>
+            <button
+              onClick={() => {
+                setShowAiSuggestions(false)
+                setAiSuggestions([])
+                setSelectedSuggestions(new Set())
+              }}
+              className="text-purple-600 hover:text-purple-800 text-sm"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="space-y-2 mb-3 max-h-48 overflow-y-auto">
+            {aiSuggestions.map((suggestion, index) => (
+              <div
+                key={index}
+                className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                  selectedSuggestions.has(index)
+                    ? 'bg-purple-100 border-purple-400'
+                    : 'bg-white border-purple-200 hover:border-purple-300'
+                }`}
+                onClick={() => handleToggleSuggestion(index)}
+              >
+                <div className="flex items-start space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedSuggestions.has(index)}
+                    onChange={() => handleToggleSuggestion(index)}
+                    className="mt-1 w-4 h-4 text-purple-600 border-purple-300 rounded focus:ring-purple-500 cursor-pointer"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800">{suggestion.task}</p>
+                    <span
+                      className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded border ${getPriorityColor(
+                        suggestion.priority
+                      )}`}
+                    >
+                      {suggestion.priority || 'Medium'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex space-x-2">
+            <button
+              onClick={handleAddSelectedSuggestions}
+              disabled={selectedSuggestions.size === 0}
+              className="flex-1 px-3 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-semibold transition-colors"
+            >
+              Add Selected ({selectedSuggestions.size})
+            </button>
+            <button
+              onClick={handleAddAllSuggestions}
+              className="flex-1 px-3 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 text-sm font-semibold transition-colors"
+            >
+              Add All
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Add Task Form */}
       {showAddForm && (
