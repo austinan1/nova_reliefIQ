@@ -151,6 +151,7 @@ function App() {
                 selectedNGO={selectedNGO}
                 onClose={() => setSelectedDistrict(null)}
                 isOpen={!!selectedDistrict}
+                geojson={data.geojson}
               />
             )}
           </div>

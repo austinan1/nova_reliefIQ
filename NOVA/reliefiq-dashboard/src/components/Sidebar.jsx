@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { generatePlan } from '../utils/aiClient'
+import InlineRouteMap from './InlineRouteMap'
 
-const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen }) => {
+const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen, geojson }) => {
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -114,6 +115,14 @@ const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen }) => {
                 />
               </div>
             )}
+
+            {/* Route Map Section */}
+            <div className="mt-6 mb-6">
+              <InlineRouteMap
+                district={district}
+                geojson={geojson}
+              />
+            </div>
 
             {/* Top 3 Aid Categories */}
             <div className="mt-6">
