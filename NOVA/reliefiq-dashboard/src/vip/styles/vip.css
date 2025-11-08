@@ -1,0 +1,102 @@
+/* VIP Module Styles */
+
+.vip-app {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* React Select Customization */
+.react-select-container .react-select__control {
+  transition: all 0.2s ease;
+}
+
+.react-select-container .react-select__control:hover {
+  border-color: #2563eb;
+}
+
+.react-select-container .react-select__option--is-focused {
+  background-color: #eff6ff;
+}
+
+.react-select-container .react-select__option--is-selected {
+  background-color: #2563eb;
+  color: white;
+}
+
+/* Smooth animations */
+.vip-app * {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+/* Map tooltip styles */
+.map-tooltip {
+  pointer-events: none;
+  z-index: 1000;
+}
+
+/* Fade-in animation for AI responses */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Scrollbar styling */
+.vip-app ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.vip-app ::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.vip-app ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.vip-app ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Card hover effects */
+.vip-app .shadow-md:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  transform: translateY(-2px);
+  transition: all 0.2s ease;
+}
+
+/* Priority badge animations */
+.vip-app .priority-badge {
+  transition: all 0.2s ease;
+}
+
+.vip-app .priority-badge:hover {
+  transform: scale(1.05);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
