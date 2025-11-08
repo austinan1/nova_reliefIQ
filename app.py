@@ -75,7 +75,7 @@ def load_ngo_capabilities():
 def load_ngo_scores():
     """Load NGO region scores data"""
     try:
-        df = pd.read_csv('data/input/ngo_region_scores.csv')
+        df = pd.read_csv('data/output/ngo_region_scores.csv')
         df['district'] = df['district'].str.strip().str.lower()
         df['NGO'] = df['NGO'].str.strip()
         return df
