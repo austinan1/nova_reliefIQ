@@ -6,6 +6,8 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
   const svgRef = useRef()
   const containerRef = useRef()
   const [currentStep, setCurrentStep] = useState(0)
+  // Track cumulative regions helped across all steps
+  const [cumulativeRegionsHelped, setCumulativeRegionsHelped] = useState(new Set())
 
   // Calculate NGO locations based on current step
   // Step 0 = top 5 districts, Step 1 = next 5 (6th-10th), Step 2 = next 5 (11th-15th), etc.
@@ -297,6 +299,17 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       .attr('stroke-width', 0.5)
       .attr('opacity', 0.8)
 
+    // Track which NGOs are at each district
+    const districtNGOMap = {}
+    Object.keys(ngoStepDistricts).forEach(ngo => {
+      ngoStepDistricts[ngo].forEach(district => {
+        if (!districtNGOMap[district]) {
+          districtNGOMap[district] = []
+        }
+        districtNGOMap[district].push(ngo)
+      })
+    })
+
     // Get district centroids and create marker locations
     const markerLocations = []
     Object.keys(districtCounts).forEach(districtName => {
@@ -341,7 +354,8 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
               district: districtName,
               lng: lngSum / count,
               lat: latSum / count,
-              ngoCount: districtCounts[districtName]
+              ngoCount: districtCounts[districtName],
+              ngos: districtNGOMap[districtName] || []
             })
           }
         }
@@ -371,11 +385,52 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
         d3.select(this)
           .attr('opacity', 1)
           .attr('r', d => Math.max(10, Math.min(22, 10 + d.ngoCount * 2)))
+        
+        // Show tooltip with NGO names
+        const tooltip = d3.select('body').append('div')
+          .attr('class', 'map-tooltip')
+          .style('opacity', 0)
+          .style('position', 'absolute')
+          .style('background', 'rgba(0, 0, 0, 0.9)')
+          .style('color', 'white')
+          .style('padding', '12px')
+          .style('border-radius', '8px')
+          .style('pointer-events', 'none')
+          .style('z-index', 1000)
+          .style('font-size', '12px')
+          .style('box-shadow', '0 4px 6px rgba(0, 0, 0, 0.3)')
+          .style('max-width', '300px')
+        
+        const ngoList = d.ngos && d.ngos.length > 0 
+          ? d.ngos.map(ngo => `<li>${ngo}</li>`).join('')
+          : '<li>No NGOs listed</li>'
+        
+        tooltip.html(`
+          <strong>${d.district}</strong><br/>
+          <strong>${d.ngoCount} ${d.ngoCount === 1 ? 'NGO' : 'NGOs'}</strong><br/>
+          <ul style="margin: 8px 0 0 0; padding-left: 20px; list-style-type: disc;">
+            ${ngoList}
+          </ul>
+        `)
+
+        tooltip.transition()
+          .duration(200)
+          .style('opacity', 1)
+
+        tooltip.style('left', (event.pageX + 10) + 'px')
+          .style('top', (event.pageY - 10) + 'px')
+      })
+      .on('mousemove', function(event) {
+        const tooltip = d3.select('.map-tooltip')
+        tooltip.style('left', (event.pageX + 10) + 'px')
+          .style('top', (event.pageY - 10) + 'px')
       })
       .on('mouseout', function(event, d) {
         d3.select(this)
           .attr('opacity', 0.8)
           .attr('r', d => Math.max(8, Math.min(20, 8 + d.ngoCount * 2)))
+        
+        d3.select('.map-tooltip').remove()
       })
 
     // Labels showing NGO count
@@ -426,9 +481,106 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
     )
   }
 
+  // Update cumulative regions helped when step changes
+  useEffect(() => {
+    if (!ngoRegionScores || ngoRegionScores.length === 0) return
+
+    // Calculate districts for current step
+    const ngoScores = {}
+    ngoRegionScores.forEach(score => {
+      const ngo = String(score.NGO).trim()
+      if (!ngoScores[ngo]) {
+        ngoScores[ngo] = []
+      }
+      ngoScores[ngo].push({
+        district: normalizeDistrictName(score.district),
+        fitness: parseFloat(score.fitness_score || 0)
+      })
+    })
+
+    const ngoStepDistricts = {}
+    Object.keys(ngoScores).forEach(ngo => {
+      const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
+      const startIdx = currentStep * 5
+      const endIdx = startIdx + 5
+      const stepDistricts = sorted.slice(startIdx, endIdx)
+      ngoStepDistricts[ngo] = stepDistricts.map(d => d.district)
+    })
+
+    const districtCounts = {}
+    Object.values(ngoStepDistricts).forEach(districts => {
+      districts.forEach(district => {
+        if (!districtCounts[district]) {
+          districtCounts[district] = 0
+        }
+        districtCounts[district]++
+      })
+    })
+
+    // Add current step's districts to cumulative set
+    setCumulativeRegionsHelped(prev => {
+      const newSet = new Set(prev)
+      Object.keys(districtCounts).forEach(district => {
+        newSet.add(district)
+      })
+      return newSet
+    })
+  }, [ngoRegionScores, currentStep])
+
+  // Calculate relief statistics
+  const reliefStats = useMemo(() => {
+    if (!ngoRegionScores || ngoRegionScores.length === 0) return null
+
+    // Calculate statistics for current step
+    const ngoScores = {}
+    ngoRegionScores.forEach(score => {
+      const ngo = String(score.NGO).trim()
+      if (!ngoScores[ngo]) {
+        ngoScores[ngo] = []
+      }
+      ngoScores[ngo].push({
+        district: normalizeDistrictName(score.district),
+        fitness: parseFloat(score.fitness_score || 0)
+      })
+    })
+
+    const ngoStepDistricts = {}
+    Object.keys(ngoScores).forEach(ngo => {
+      const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
+      const startIdx = currentStep * 5
+      const endIdx = startIdx + 5
+      const stepDistricts = sorted.slice(startIdx, endIdx)
+      ngoStepDistricts[ngo] = stepDistricts.map(d => d.district)
+    })
+
+    const districtCounts = {}
+    Object.values(ngoStepDistricts).forEach(districts => {
+      districts.forEach(district => {
+        if (!districtCounts[district]) {
+          districtCounts[district] = 0
+        }
+        districtCounts[district]++
+      })
+    })
+
+    // Use cumulative regions helped (increases over time, capped at 77)
+    const regionsHelped = Math.min(cumulativeRegionsHelped.size, 77)
+    const totalNGOs = Object.keys(ngoStepDistricts).length
+    const totalAssignments = Object.values(districtCounts).reduce((sum, count) => sum + count, 0)
+    const avgNGOsPerRegion = regionsHelped > 0 ? (totalAssignments / regionsHelped).toFixed(1) : 0
+
+    return {
+      regionsHelped,
+      totalNGOs,
+      totalAssignments,
+      avgNGOsPerRegion
+    }
+  }, [ngoRegionScores, currentStep, cumulativeRegionsHelped])
+
   return (
-    <div ref={containerRef} className="w-full h-96 bg-gray-50 rounded-lg border border-gray-200 relative">
-      <svg ref={svgRef} className="w-full h-full"></svg>
+    <div className="w-full">
+      <div ref={containerRef} className="w-full h-96 bg-gray-50 rounded-lg border border-gray-200 relative">
+        <svg ref={svgRef} className="w-full h-full"></svg>
       
       {/* Step Controls */}
       <div className="absolute top-4 right-4 bg-white rounded-lg shadow-lg p-4 z-10 border border-gray-200">
@@ -488,6 +640,38 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
           </div>
         </div>
       </div>
+      </div>
+
+      {/* Relief Statistics Section */}
+      {reliefStats && (
+        <div className="mt-6 bg-white rounded-xl shadow-lg p-6">
+          <h3 className="text-2xl font-bold text-primary-600 mb-4 pb-2 border-b-2 border-primary-600">
+            📊 Relief Statistics
+          </h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
+              <div className="text-sm text-gray-600 mb-1">Regions Helped</div>
+              <div className="text-3xl font-bold text-blue-600">{reliefStats.regionsHelped}</div>
+              <div className="text-xs text-gray-500 mt-1">Districts with NGO coverage</div>
+            </div>
+            <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
+              <div className="text-sm text-gray-600 mb-1">Total NGOs</div>
+              <div className="text-3xl font-bold text-green-600">{reliefStats.totalNGOs}</div>
+              <div className="text-xs text-gray-500 mt-1">Active organizations</div>
+            </div>
+            <div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-600">
+              <div className="text-sm text-gray-600 mb-1">Total Assignments</div>
+              <div className="text-3xl font-bold text-purple-600">{reliefStats.totalAssignments}</div>
+              <div className="text-xs text-gray-500 mt-1">NGO-district pairs</div>
+            </div>
+            <div className="bg-orange-50 rounded-lg p-4 border-l-4 border-orange-600">
+              <div className="text-sm text-gray-600 mb-1">Avg NGOs/Region</div>
+              <div className="text-3xl font-bold text-orange-600">{reliefStats.avgNGOsPerRegion}</div>
+              <div className="text-xs text-gray-500 mt-1">Average coverage</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
