@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import NGOLocationsMap from './NGOLocationsMap'
 
 const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
   // Calculate summary statistics
@@ -138,6 +139,17 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
           <p className="text-gray-600">
             Overview of all NGO-district assignments and coverage
           </p>
+        </div>
+
+        {/* NGO Locations Map */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h3 className="text-2xl font-bold text-primary-600 mb-4 pb-2 border-b-2 border-primary-600">
+            🗺️ NGO Locations Map
+          </h3>
+          <p className="text-gray-600 mb-4">
+            Map showing where each NGO is located based on their top 5 best-fit regions
+          </p>
+          <NGOLocationsMap ngoRegionScores={ngoRegionScores} geojson={geojson} />
         </div>
 
         {/* Overall Statistics */}
