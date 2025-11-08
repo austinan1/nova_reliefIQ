@@ -1,7 +1,7 @@
 import React from 'react'
 import Select from 'react-select'
 
-const Header = ({ ngos, selectedNGO, onSelectNGO }) => {
+const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange }) => {
   const options = ngos.map(ngo => ({
     value: ngo,
     label: ngo
@@ -43,15 +43,42 @@ const Header = ({ ngos, selectedNGO, onSelectNGO }) => {
           <span className="text-gray-500 text-sm">Nepal Disaster Response Dashboard</span>
         </div>
         <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">Select NGO:</label>
-          <Select
-            options={options}
-            value={options.find(opt => opt.value === selectedNGO)}
-            onChange={(option) => onSelectNGO(option?.value || null)}
-            styles={customStyles}
-            placeholder="Choose an NGO..."
-            isSearchable
-          />
+          {/* Navigation Buttons */}
+          <div className="flex space-x-2">
+            <button
+              onClick={() => onPageChange('dashboard')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'dashboard'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              📊 NGO Dashboard
+            </button>
+            <button
+              onClick={() => onPageChange('summary')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                currentPage === 'summary'
+                  ? 'bg-primary-600 text-white shadow-md'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              📋 All Efforts Summary
+            </button>
+          </div>
+          {currentPage === 'dashboard' && (
+            <>
+              <label className="text-sm font-medium text-gray-700">Select NGO:</label>
+              <Select
+                options={options}
+                value={options.find(opt => opt.value === selectedNGO)}
+                onChange={(option) => onSelectNGO(option?.value || null)}
+                styles={customStyles}
+                placeholder="Choose an NGO..."
+                isSearchable
+              />
+            </>
+          )}
         </div>
       </div>
     </header>

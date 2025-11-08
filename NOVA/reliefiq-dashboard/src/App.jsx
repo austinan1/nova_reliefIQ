@@ -5,6 +5,7 @@ import MapView from './components/MapView'
 import Sidebar from './components/Sidebar'
 import TopRegionsSummary from './components/TopRegionsSummary'
 import ChatAssistant from './components/ChatAssistant'
+import AllEffortsSummary from './components/AllEffortsSummary'
 import './styles/global.css'
 
 function App() {
@@ -14,6 +15,7 @@ function App() {
   const [mergedData, setMergedData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [currentPage, setCurrentPage] = useState('dashboard') // 'dashboard' or 'summary'
 
   console.log('App rendering - loading:', loading, 'error:', error, 'data:', !!data)
 
@@ -114,46 +116,61 @@ function App() {
         ngos={data.ngos || []}
         selectedNGO={selectedNGO}
         onSelectNGO={setSelectedNGO}
+        currentPage={currentPage}
+        onPageChange={setCurrentPage}
       />
       
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Map */}
-        <div className="flex-1 p-4">
-          <MapView
+      {currentPage === 'dashboard' ? (
+        <>
+          <div className="flex-1 flex overflow-hidden">
+            {/* Left Side - Map */}
+            <div className="flex-1 p-4">
+              <MapView
+                geojson={data.geojson}
+                data={mergedData}
+                selectedNGO={selectedNGO}
+                onDistrictClick={setSelectedDistrict}
+                selectedDistrict={selectedDistrict}
+              />
+            </div>
+
+            {/* Right Side - Top 5 Best Fit Regions Summary */}
+            <div className="w-96 border-l border-gray-200 p-4 bg-gray-50">
+              <TopRegionsSummary
+                data={mergedData}
+                selectedNGO={selectedNGO}
+                onDistrictClick={setSelectedDistrict}
+              />
+            </div>
+
+            {/* District Details Sidebar (overlay) */}
+            {selectedDistrictData && (
+              <Sidebar
+                district={selectedDistrictData.district}
+                districtData={selectedDistrictData}
+                selectedNGO={selectedNGO}
+                onClose={() => setSelectedDistrict(null)}
+                isOpen={!!selectedDistrict}
+              />
+            )}
+          </div>
+
+          {/* Chat Assistant */}
+          <ChatAssistant
+            selectedNGO={selectedNGO}
+            mergedData={mergedData}
+          />
+        </>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
+          <AllEffortsSummary
+            ngoRegionScores={data.ngoRegionScores || []}
+            districts={data.districts || []}
+            ngos={data.ngos || []}
             geojson={data.geojson}
-            data={mergedData}
-            selectedNGO={selectedNGO}
-            onDistrictClick={setSelectedDistrict}
-            selectedDistrict={selectedDistrict}
           />
         </div>
-
-        {/* Right Side - Top 5 Best Fit Regions Summary */}
-        <div className="w-96 border-l border-gray-200 p-4 bg-gray-50">
-          <TopRegionsSummary
-            data={mergedData}
-            selectedNGO={selectedNGO}
-            onDistrictClick={setSelectedDistrict}
-          />
-        </div>
-
-        {/* District Details Sidebar (overlay) */}
-        {selectedDistrictData && (
-          <Sidebar
-            district={selectedDistrictData.district}
-            districtData={selectedDistrictData}
-            selectedNGO={selectedNGO}
-            onClose={() => setSelectedDistrict(null)}
-            isOpen={!!selectedDistrict}
-          />
-        )}
-      </div>
-
-      {/* Chat Assistant */}
-      <ChatAssistant
-        selectedNGO={selectedNGO}
-        mergedData={mergedData}
-      />
+      )}
     </div>
   )
 }
