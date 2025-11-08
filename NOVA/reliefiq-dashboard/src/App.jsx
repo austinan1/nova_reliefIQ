@@ -91,7 +91,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="app h-screen flex flex-col bg-gray-50">
+      <div className="app h-screen flex flex-col">
         <Header
           ngos={[]}
           selectedNGO={null}
@@ -102,9 +102,9 @@ function App() {
           onPlatformChange={setPlatform}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
-            <p className="text-gray-600 text-lg">Loading dashboard data...</p>
+          <div className="text-center medical-card p-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-[3px] border-gray-200 border-t-primary-500 mx-auto mb-4"></div>
+            <p className="text-gray-700 text-base font-medium">Loading dashboard data...</p>
             <p className="text-gray-500 text-sm mt-2">Please wait while we load the data files...</p>
           </div>
         </div>
@@ -114,7 +114,7 @@ function App() {
 
   if (error) {
     return (
-      <div className="app h-screen flex flex-col bg-gray-50">
+      <div className="app h-screen flex flex-col">
         <Header
           ngos={[]}
           selectedNGO={null}
@@ -125,8 +125,8 @@ function App() {
           onPlatformChange={setPlatform}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
-            <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Data</h2>
+          <div className="text-center medical-card p-8 max-w-md">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Error Loading Data</h2>
             <p className="text-gray-700 mb-4">{error}</p>
             <p className="text-sm text-gray-500">Please ensure all data files are in the correct location.</p>
           </div>
@@ -137,7 +137,7 @@ function App() {
 
   if (!data) {
     return (
-      <div className="app h-screen flex flex-col bg-gray-50">
+      <div className="app h-screen flex flex-col">
         <Header
           ngos={[]}
           selectedNGO={null}
@@ -148,9 +148,9 @@ function App() {
           onPlatformChange={setPlatform}
         />
         <div className="flex-1 flex items-center justify-center">
-          <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">No Data Available</h2>
-            <p className="text-gray-700">Unable to load dashboard data.</p>
+          <div className="text-center medical-card p-8 max-w-md">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">No Data Available</h2>
+            <p className="text-gray-600">Unable to load dashboard data.</p>
           </div>
         </div>
       </div>
@@ -164,7 +164,7 @@ function App() {
     : null
 
   return (
-    <div className="app h-screen flex flex-col bg-gray-50">
+    <div className="app h-screen flex flex-col">
       <Header
         ngos={data.ngos || []}
         selectedNGO={selectedNGO}
@@ -190,7 +190,7 @@ function App() {
             </div>
 
             {/* Right Side - Top 5 Best Fit Regions Summary */}
-            <div className="w-[600px] border-l border-gray-200 p-4 bg-gray-50">
+            <div className="w-[600px] border-l border-gray-200 p-4 bg-white">
               <TopRegionsSummary
                 data={mergedData}
                 selectedNGO={selectedNGO}

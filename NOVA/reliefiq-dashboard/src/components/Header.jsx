@@ -10,43 +10,48 @@ const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange, pla
   const customStyles = {
     control: (provided) => ({
       ...provided,
-      backgroundColor: 'white',
-      borderColor: '#e5e7eb',
-      borderRadius: '0.5rem',
+      background: '#ffffff',
+      borderColor: '#e2e8f0',
+      borderRadius: '8px',
       minWidth: '300px',
-      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05)',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
       '&:hover': {
-        borderColor: '#3b82f6'
+        borderColor: '#cbd5e1',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)'
       }
     }),
     option: (provided, state) => ({
       ...provided,
-      backgroundColor: state.isSelected
-        ? '#3b82f6'
+      background: state.isSelected
+        ? '#0ea5e9'
         : state.isFocused
-        ? '#eff6ff'
-        : 'white',
-      color: state.isSelected ? 'white' : '#1f2937',
+        ? '#f1f5f9'
+        : 'transparent',
+      color: state.isSelected ? 'white' : '#0f172a',
+      transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
       '&:hover': {
-        backgroundColor: state.isSelected ? '#3b82f6' : '#eff6ff'
+        background: state.isSelected 
+          ? '#0ea5e9'
+          : '#f1f5f9'
       }
     })
   }
 
   return (
-    <header className="bg-white shadow-lg border-b border-gray-200 px-6 py-4">
+    <header className="bg-white border-b border-gray-200 px-6 py-4 shadow-sm">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <img 
             src="/logo.png" 
             alt="ReliefIQ Logo" 
-            className="h-12 w-auto"
+            className="h-10 w-auto"
           />
           <div className="flex flex-col">
-            <h1 className="text-3xl font-bold text-primary-600">
+            <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">
               ReliefIQ
             </h1>
-            <span className="text-gray-500 text-sm">Nepal Disaster Response Dashboard</span>
+            <span className="text-sm text-gray-500 font-normal">Nepal Disaster Response Dashboard</span>
           </div>
         </div>
         <div className="flex items-center space-x-4">
@@ -56,23 +61,23 @@ const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange, pla
               <div className="flex space-x-2">
                 <button
                   onClick={() => onPageChange('dashboard')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     currentPage === 'dashboard'
-                      ? 'bg-primary-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary-500 text-white shadow-medical-button'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  📊 NGO Dashboard
+                  Dashboard
                 </button>
                 <button
                   onClick={() => onPageChange('summary')}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     currentPage === 'summary'
-                      ? 'bg-primary-600 text-white shadow-md'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-primary-500 text-white shadow-medical-button'
+                      : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  📋 All Efforts Summary
+                  Summary
                 </button>
               </div>
               {currentPage === 'dashboard' && (
@@ -92,14 +97,16 @@ const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange, pla
           )}
           
           {/* Platform Toggle Switch - Top Right */}
-          <div className="flex items-center space-x-3 border-l border-gray-300 pl-4">
+          <div className="flex items-center space-x-3 border-l border-gray-200 pl-4">
             <span className={`text-sm font-medium ${platform === 'standard' ? 'text-gray-700' : 'text-gray-400'}`}>
               RAM
             </span>
             <button
               onClick={() => onPlatformChange(platform === 'standard' ? 'vip' : 'standard')}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
-                platform === 'vip' ? 'bg-gradient-to-r from-purple-600 to-indigo-600' : 'bg-gray-300'
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${
+                platform === 'vip' 
+                  ? 'bg-primary-500' 
+                  : 'bg-gray-200'
               }`}
             >
               <span
@@ -108,7 +115,7 @@ const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange, pla
                 }`}
               />
             </button>
-            <span className={`text-sm font-medium ${platform === 'vip' ? 'text-purple-600 font-semibold' : 'text-gray-400'}`}>
+            <span className={`text-sm font-medium ${platform === 'vip' ? 'text-primary-600 font-semibold' : 'text-gray-400'}`}>
               VIP
             </span>
           </div>
