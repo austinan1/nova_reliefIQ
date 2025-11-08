@@ -2,22 +2,40 @@ import React, { useMemo } from 'react'
 import RecoveryTimeline from './RecoveryTimeline'
 
 const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
-  // Calculate summary statistics
+  // Calculate summary statistics - optimized to prevent blocking
   const summaryStats = useMemo(() => {
     if (!ngoRegionScores || ngoRegionScores.length === 0) return null
 
+    // Use early returns and efficient calculations
     const totalPairs = ngoRegionScores.length
-    const uniqueNGOs = new Set(ngoRegionScores.map(s => s.NGO)).size
-    const uniqueDistricts = new Set(ngoRegionScores.map(s => s.district)).size
+    if (totalPairs === 0) return null
 
-    // Calculate average scores
-    const avgMatch = ngoRegionScores.reduce((sum, s) => sum + parseFloat(s.match || 0), 0) / totalPairs
-    const avgUrgency = ngoRegionScores.reduce((sum, s) => sum + parseFloat(s.urgency || 0), 0) / totalPairs
-    const avgFitness = ngoRegionScores.reduce((sum, s) => sum + parseFloat(s.fitness_score || 0), 0) / totalPairs
+    // Use Set for O(1) lookups
+    const uniqueNGOs = new Set()
+    const uniqueDistricts = new Set()
+    
+    let sumMatch = 0
+    let sumUrgency = 0
+    let sumFitness = 0
+
+    // Single pass through data
+    for (let i = 0; i < ngoRegionScores.length; i++) {
+      const score = ngoRegionScores[i]
+      uniqueNGOs.add(score.NGO)
+      uniqueDistricts.add(score.district)
+      sumMatch += parseFloat(score.match || 0)
+      sumUrgency += parseFloat(score.urgency || 0)
+      sumFitness += parseFloat(score.fitness_score || 0)
+    }
+
+    const avgMatch = sumMatch / totalPairs
+    const avgUrgency = sumUrgency / totalPairs
+    const avgFitness = sumFitness / totalPairs
 
     // Coverage per district (how many NGOs are assigned to each district)
     const districtCoverage = {}
-    ngoRegionScores.forEach(score => {
+    for (let i = 0; i < ngoRegionScores.length; i++) {
+      const score = ngoRegionScores[i]
       const district = score.district.toLowerCase()
       if (!districtCoverage[district]) {
         districtCoverage[district] = {
@@ -41,7 +59,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
         districtCoverage[district].maxFitness = fitness
         districtCoverage[district].bestNGO = score.NGO
       }
-    })
+    }
 
     // Calculate averages for each district
     Object.values(districtCoverage).forEach(d => {
@@ -52,7 +70,8 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
 
     // Coverage per NGO (how many districts each NGO covers)
     const ngoCoverage = {}
-    ngoRegionScores.forEach(score => {
+    for (let i = 0; i < ngoRegionScores.length; i++) {
+      const score = ngoRegionScores[i]
       const ngo = score.NGO
       if (!ngoCoverage[ngo]) {
         ngoCoverage[ngo] = {
@@ -77,7 +96,7 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
         match: match,
         urgency: urgency
       })
-    })
+    }
 
     // Calculate averages and sort top districts for each NGO
     Object.values(ngoCoverage).forEach(n => {
@@ -119,10 +138,14 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
 
   if (!summaryStats) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading summary data...</p>
+      <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+              <p className="text-gray-600 text-lg">Loading summary data...</p>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -141,12 +164,14 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
           </p>
         </div>
 
-        {/* 5-Year Recovery Timeline Simulation */}
-        <RecoveryTimeline
-          geojson={geojson}
-          districts={districts}
-          ngoRegionScores={ngoRegionScores}
-        />
+        {/* 5-Year Recovery Timeline Simulation - Lazy loaded */}
+        {geojson && districts && ngoRegionScores && (
+          <RecoveryTimeline
+            geojson={geojson}
+            districts={districts}
+            ngoRegionScores={ngoRegionScores}
+          />
+        )}
 
         {/* Overall Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">

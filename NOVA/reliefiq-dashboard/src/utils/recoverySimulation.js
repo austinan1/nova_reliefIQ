@@ -63,31 +63,41 @@ const findBestAlternatives = (ngo, currentDistrict, allDistricts, currentAssignm
   const currentDistrictName = normalizeName(currentDistrict)
   
   // Get all districts this NGO could work in (from original scores)
-  const potentialDistricts = allDistricts
-    .filter(d => {
-      const districtName = normalizeName(d.district)
-      
-      // Not already in this district
-      const isInDistrict = currentAssignments.some(a => 
-        normalizeName(a.ngo) === ngoName && normalizeName(a.district) === districtName
-      )
-      if (isInDistrict) return false
-      
-      // Check if NGO has original score for this district
-      const key = `${ngoName}-${districtName}`
-      if (!originalScores.has(key)) return false
-      
-      // District still needs help (recovery < 70%)
-      const districtAssignments = currentAssignments
-        .filter(a => normalizeName(a.district) === districtName)
-        .map(a => ({
-          NGO: a.ngo,
-          match: a.match,
-          fitness_score: a.fitness
-        }))
-      const recovery = calculateRecovery(d, districtAssignments, monthsElapsed)
-      return recovery.recoveryScore < 70
-    })
+  // Limit search to top candidates for performance
+  const potentialDistricts = []
+  const maxCandidates = 50 // Limit search space
+  
+  for (const d of allDistricts) {
+    if (potentialDistricts.length >= maxCandidates) break
+    
+    const districtName = normalizeName(d.district)
+    
+    // Not already in this district
+    const isInDistrict = currentAssignments.some(a => 
+      normalizeName(a.ngo) === ngoName && normalizeName(a.district) === districtName
+    )
+    if (isInDistrict) continue
+    
+    // Check if NGO has original score for this district
+    const key = `${ngoName}-${districtName}`
+    if (!originalScores.has(key)) continue
+    
+    // Quick check: District still needs help (recovery < 70%)
+    // Use simplified calculation for filtering
+    const districtAssignments = currentAssignments
+      .filter(a => normalizeName(a.district) === districtName)
+      .map(a => ({
+        NGO: a.ngo,
+        match: a.match,
+        fitness_score: a.fitness
+      }))
+    const recovery = calculateRecovery(d, districtAssignments, monthsElapsed)
+    if (recovery.recoveryScore >= 70) continue
+    
+    potentialDistricts.push(d)
+  }
+  
+  const scoredDistricts = potentialDistricts
     .map(d => {
       const districtName = normalizeName(d.district)
       const key = `${ngoName}-${districtName}`
@@ -161,8 +171,10 @@ export const simulateRecovery = (districts, ngoRegionScores, maxMonths = 60) => 
     originalScores.set(key, score)
   })
   
-  // Simulate each month
-  for (let month = 0; month <= maxMonths; month += 3) { // Every 3 months for performance
+  // Simulate each month - use larger intervals for better performance
+  // Reduced to every 12 months (yearly) for much better performance
+  const timeStep = 12 // Every 12 months (yearly snapshots)
+  for (let month = 0; month <= maxMonths; month += timeStep) {
     // Calculate current state of all districts
     const districtStates = new Map()
     
@@ -186,8 +198,10 @@ export const simulateRecovery = (districts, ngoRegionScores, maxMonths = 60) => 
     })
     
     // Check for NGOs that should move (their district is recovered)
+    // Limit movements per time step to avoid performance issues
     const ngoMovements = []
     const newAssignments = [...currentAssignments]
+    const movedNGOs = new Set() // Track NGOs that have already moved this step
     
     // Group assignments by NGO
     const ngoGroups = new Map()
@@ -198,15 +212,23 @@ export const simulateRecovery = (districts, ngoRegionScores, maxMonths = 60) => 
       ngoGroups.get(assignment.ngo).push(assignment)
     })
     
-    // Check each NGO's districts
+    // Check each NGO's districts (limit to prevent too many calculations)
+    let movementCount = 0
+    const maxMovementsPerStep = 20 // Limit movements per time step
+    
     ngoGroups.forEach((assignments, ngo) => {
+      if (movementCount >= maxMovementsPerStep) return
+      
       assignments.forEach(assignment => {
+        if (movementCount >= maxMovementsPerStep) return
+        if (movedNGOs.has(ngo)) return // Don't move same NGO twice in one step
+        
         const districtName = normalizeName(assignment.district)
         const districtState = districtStates.get(districtName)
         
         if (districtState && isRecovered(districtState.recoveryScore) && !assignment.moved) {
           // This district is recovered, NGO can move
-          // Find best alternative
+          // Find best alternative (limit search)
           const alternatives = findBestAlternatives(
             ngo,
             assignment.district,
@@ -254,6 +276,9 @@ export const simulateRecovery = (districts, ngoRegionScores, maxMonths = 60) => 
                   month: month,
                   reason: `District recovered (${districtState.recoveryScore.toFixed(1)}%)`
                 })
+                
+                movedNGOs.add(ngo)
+                movementCount++
               }
             }
           }

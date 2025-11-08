@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import * as d3 from 'd3'
 import { normalizeDistrictName } from '../utils/dataLoader'
-import { simulateRecovery, getRecoveryColor, formatTime } from '../utils/recoverySimulation'
+import { createSimulationState, runIncrementalSimulation, getRecoveryColor, formatTime, buildDistrictGraph } from '../utils/recoverySimulationIncremental'
 
 const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
   const svgRef = useRef()
@@ -10,11 +10,65 @@ const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
   const [isPlaying, setIsPlaying] = useState(false)
   const playIntervalRef = useRef()
 
-  // Simulate recovery timeline
-  const timeline = useMemo(() => {
-    if (!districts || !ngoRegionScores) return []
-    return simulateRecovery(districts, ngoRegionScores, 60) // 5 years
-  }, [districts, ngoRegionScores])
+  const [timeline, setTimeline] = useState([])
+  const [isCalculating, setIsCalculating] = useState(true)
+  const [calculationError, setCalculationError] = useState(null)
+  const [calculationProgress, setCalculationProgress] = useState(0)
+  const simulationStateRef = useRef(null)
+  const cancelRef = useRef(null)
+
+  // Simulate recovery timeline incrementally to avoid blocking UI
+  useEffect(() => {
+    if (!districts || !ngoRegionScores || districts.length === 0 || ngoRegionScores.length === 0 || !geojson) {
+      setIsCalculating(false)
+      return
+    }
+
+    setIsCalculating(true)
+    setCalculationError(null)
+    setTimeline([])
+    setCalculationProgress(0)
+
+    try {
+      // Create simulation state
+      const state = createSimulationState(districts, ngoRegionScores, 60)
+      simulationStateRef.current = state
+      
+      // Build district graph for movement
+      const districtGraph = buildDistrictGraph(districts, geojson)
+      
+      // Run incrementally with progress updates
+      const cancel = runIncrementalSimulation(
+        state,
+        (snapshot, stepCount) => {
+          // Update progress
+          const totalSteps = Math.ceil(60 / state.timeStep) + 1
+          setCalculationProgress((stepCount / totalSteps) * 100)
+          // Update timeline as we go
+          setTimeline([...state.timeline])
+        },
+        (finalTimeline) => {
+          // Complete
+          setTimeline(finalTimeline)
+          setIsCalculating(false)
+          setCalculationProgress(100)
+        },
+        districtGraph
+      )
+      
+      cancelRef.current = cancel
+    } catch (error) {
+      console.error('Simulation setup error:', error)
+      setCalculationError(error.message)
+      setIsCalculating(false)
+    }
+
+    return () => {
+      if (cancelRef.current) {
+        cancelRef.current()
+      }
+    }
+  }, [districts, ngoRegionScores, geojson])
 
   const currentSnapshot = timeline[currentTimelineIndex] || null
   const currentMonth = currentSnapshot ? currentSnapshot.month : 0
@@ -165,27 +219,107 @@ const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
         d3.select('.map-tooltip').remove()
       })
 
-    // Add NGO labels and indicators
+    // Add NGO labels, indicators, and movement animations
     const ngoLabelsGroup = svg.append('g').attr('class', 'ngo-labels')
+    const movementGroup = svg.append('g').attr('class', 'ngo-movements')
+    
+    // Get previous snapshot for movement tracking
+    const previousSnapshot = timeline[currentTimelineIndex - 1] || null
+    const previousDataMap = previousSnapshot ? new Map() : null
+    if (previousSnapshot) {
+      previousSnapshot.districtStates.forEach(d => {
+        previousDataMap.set(normalizeName(d.district), d)
+      })
+    }
     
     geojson.features.forEach((feature, featureIdx) => {
       const props = feature.properties
       const normalizedName = props.normalized_name || normalizeName(props.NAME || props.DISTRICT || props.name || props.district || '')
       const districtData = dataMap.get(normalizedName)
+      const previousData = previousDataMap ? previousDataMap.get(normalizedName) : null
       
-      if (districtData && districtData.ngoCount > 0) {
-        const centroid = path.centroid(feature)
-        const area = d3.geoArea(feature)
+      const centroid = path.centroid(feature)
+      const area = d3.geoArea(feature)
+      
+      if (area > 0.0001 && centroid[0] > 0 && centroid[1] > 0) {
+        // Check if NGOs arrived (new NGOs in this district)
+        if (districtData && previousData) {
+          const previousNGOs = new Set(previousData.ngoAssignments || [])
+          const currentNGOs = new Set(districtData.ngoAssignments || [])
+          const newNGOs = Array.from(currentNGOs).filter(n => !previousNGOs.has(n))
+          
+          // Animate NGOs arriving (blue dots moving in)
+          newNGOs.forEach((ngo, ngoIdx) => {
+            // Find where this NGO came from
+            const movement = currentSnapshot.ngoMovements?.find(m => 
+              m.ngo === ngo && normalizeName(m.to) === normalizedName
+            )
+            
+            if (movement && movement.fromCoords && movement.toCoords) {
+              // Project coordinates
+              const fromProj = projection(movement.fromCoords)
+              const toProj = projection(movement.toCoords)
+              
+              // Create animated dot moving from source to destination
+              const movingDot = movementGroup.append('circle')
+                .attr('cx', fromProj[0])
+                .attr('cy', fromProj[1])
+                .attr('r', 6)
+                .attr('fill', '#3b82f6')
+                .attr('opacity', 0.9)
+                .style('pointer-events', 'none')
+                .attr('stroke', 'white')
+                .attr('stroke-width', 2)
+              
+              // Animate movement
+              movingDot
+                .transition()
+                .duration(1500)
+                .ease(d3.easeCubicOut)
+                .attr('cx', toProj[0])
+                .attr('cy', toProj[1])
+                .attr('r', 4)
+                .transition()
+                .duration(300)
+                .attr('opacity', 0)
+                .remove()
+              
+              // Draw movement path
+              const pathLine = movementGroup.append('line')
+                .attr('x1', fromProj[0])
+                .attr('y1', fromProj[1])
+                .attr('x2', fromProj[0])
+                .attr('y2', fromProj[1])
+                .attr('stroke', '#3b82f6')
+                .attr('stroke-width', 2)
+                .attr('stroke-dasharray', '5,5')
+                .attr('opacity', 0.6)
+                .style('pointer-events', 'none')
+              
+              pathLine
+                .transition()
+                .duration(1500)
+                .ease(d3.easeCubicOut)
+                .attr('x2', toProj[0])
+                .attr('y2', toProj[1])
+                .transition()
+                .duration(500)
+                .attr('opacity', 0)
+                .remove()
+            }
+          })
+        }
         
-        if (area > 0.0001 && centroid[0] > 0 && centroid[1] > 0) {
+        if (districtData && districtData.ngoCount > 0) {
           const districtGroup = ngoLabelsGroup.append('g')
             .attr('class', `district-ngo-labels-${featureIdx}`)
           
-          // Pulsing activity indicator
+          // Pulsing activity indicator - intensity based on NGO count
+          const pulseSize = Math.min(5 + districtData.ngoCount * 1.5, 12)
           const activityIndicator = districtGroup.append('circle')
             .attr('cx', centroid[0])
             .attr('cy', centroid[1])
-            .attr('r', 5)
+            .attr('r', pulseSize)
             .attr('fill', '#3b82f6')
             .attr('opacity', 0.8)
             .style('pointer-events', 'none')
@@ -193,12 +327,12 @@ const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
           const pulse = () => {
             activityIndicator
               .transition()
-              .duration(1200)
-              .attr('r', 10)
+              .duration(1000)
+              .attr('r', pulseSize * 2)
               .attr('opacity', 0.3)
               .transition()
-              .duration(1200)
-              .attr('r', 5)
+              .duration(1000)
+              .attr('r', pulseSize)
               .attr('opacity', 0.8)
               .on('end', pulse)
           }
@@ -295,21 +429,68 @@ const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
       window.removeEventListener('resize', handleResize)
       d3.select('.map-tooltip').remove()
     }
-  }, [geojson, currentSnapshot])
+  }, [geojson, currentSnapshot, currentTimelineIndex, timeline])
 
-  if (!timeline.length) {
+  if (isCalculating) {
     return (
-      <div className="flex items-center justify-center h-96 bg-gray-50 rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Calculating recovery simulation...</p>
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center w-full max-w-md">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 text-lg mb-2">Calculating 5-year recovery simulation...</p>
+            <p className="text-gray-500 text-sm mb-4">Processing incrementally to keep UI responsive</p>
+            
+            {/* Progress bar */}
+            <div className="w-full bg-gray-200 rounded-full h-3 mb-2">
+              <div 
+                className="bg-primary-600 h-3 rounded-full transition-all duration-300"
+                style={{ width: `${calculationProgress}%` }}
+              ></div>
+            </div>
+            <p className="text-gray-500 text-xs">{Math.round(calculationProgress)}% complete</p>
+            
+            <p className="text-gray-400 text-xs mt-4">Processing {districts?.length || 0} districts and {ngoRegionScores?.length || 0} NGO assignments</p>
+          </div>
         </div>
       </div>
     )
   }
 
-  const maxMonth = timeline.length - 1
-  const currentTime = timeline[currentMonth]
+  if (calculationError) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center bg-red-50 rounded-lg p-6 border border-red-200 max-w-md">
+            <h3 className="text-xl font-semibold text-red-600 mb-2">Simulation Error</h3>
+            <p className="text-gray-700 mb-4">{calculationError}</p>
+            <button
+              onClick={() => {
+                setIsCalculating(true)
+                setCalculationError(null)
+              }}
+              className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!timeline.length) {
+    return (
+      <div className="bg-white rounded-xl shadow-lg p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <p className="text-gray-600">No simulation data available</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const currentTime = currentSnapshot
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -375,12 +556,12 @@ const RecoveryTimeline = ({ geojson, districts, ngoRegionScores }) => {
         />
         
         <div className="flex justify-between mt-2 text-xs text-gray-500">
-          <span>0 months</span>
-          <span>1 year</span>
-          <span>2 years</span>
-          <span>3 years</span>
-          <span>4 years</span>
-          <span>5 years</span>
+          <span>0m</span>
+          <span>1y</span>
+          <span>2y</span>
+          <span>3y</span>
+          <span>4y</span>
+          <span>5y</span>
         </div>
       </div>
 
