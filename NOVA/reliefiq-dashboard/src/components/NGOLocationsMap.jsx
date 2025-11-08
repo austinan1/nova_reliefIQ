@@ -105,8 +105,9 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
   }, [ngoRegionScores, geojson, currentStep])
 
   useEffect(() => {
-    if (!geojson || !svgRef.current || !containerRef.current) return
+    if (!geojson || !svgRef.current || !containerRef.current || !ngoRegionScores || ngoRegionScores.length === 0) return
 
+    // Clear everything to force a complete reload on every step change
     const svg = d3.select(svgRef.current)
     svg.selectAll('*').remove()
 
@@ -123,78 +124,104 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
 
     const path = d3.geoPath().projection(projection)
 
+    // Recalculate NGO locations for current step directly here
+    // Group scores by NGO
+    const ngoScores = {}
+    ngoRegionScores.forEach(score => {
+      const ngo = String(score.NGO).trim()
+      if (!ngoScores[ngo]) {
+        ngoScores[ngo] = []
+      }
+      ngoScores[ngo].push({
+        district: normalizeDistrictName(score.district),
+        fitness: parseFloat(score.fitness_score || 0)
+      })
+    })
+
+    // Get districts for current step (5 districts per step)
+    const ngoStepDistricts = {}
+    Object.keys(ngoScores).forEach(ngo => {
+      const sorted = ngoScores[ngo].sort((a, b) => b.fitness - a.fitness)
+      const startIdx = currentStep * 5
+      const endIdx = startIdx + 5
+      const stepDistricts = sorted.slice(startIdx, endIdx)
+      ngoStepDistricts[ngo] = stepDistricts.map(d => d.district)
+    })
+
+    // Count NGOs per district for current step
+    const districtCounts = {}
+    Object.values(ngoStepDistricts).forEach(districts => {
+      districts.forEach(district => {
+        if (!districtCounts[district]) {
+          districtCounts[district] = 0
+        }
+        districtCounts[district]++
+      })
+    })
+
     // Create a map of district names to urgency/need scores (base colors)
     const districtUrgencyMap = new Map()
-    if (ngoRegionScores && ngoRegionScores.length > 0) {
-      ngoRegionScores.forEach(score => {
-        const districtName = normalizeDistrictName(score.district)
-        if (!districtUrgencyMap.has(districtName)) {
-          // Urgency might be 0-1 or 0-100, normalize to 0-100 for consistency
-          const urgency = parseFloat(score.urgency || 0)
-          const urgencyNormalized = urgency <= 1 ? urgency * 100 : urgency
-          districtUrgencyMap.set(districtName, urgencyNormalized)
-        }
-      })
-    }
+    ngoRegionScores.forEach(score => {
+      const districtName = normalizeDistrictName(score.district)
+      if (!districtUrgencyMap.has(districtName)) {
+        // Urgency might be 0-1 or 0-100, normalize to 0-100 for consistency
+        const urgency = parseFloat(score.urgency || 0)
+        const urgencyNormalized = urgency <= 1 ? urgency * 100 : urgency
+        districtUrgencyMap.set(districtName, urgencyNormalized)
+      }
+    })
 
     // Find max and min urgency for base color scale
     const urgencyValues = Array.from(districtUrgencyMap.values())
     const maxUrgency = urgencyValues.length > 0 ? Math.max(...urgencyValues, 1) : 100
     const minUrgency = urgencyValues.length > 0 ? Math.min(...urgencyValues, 0) : 0
 
-    // Base color scale: green (low need) to red (high need) - initial colors
+    // Base color scale: light red (low need) to dark red (high need) - all red initially
     const baseColorScale = d3.scaleSequential()
       .domain([minUrgency, maxUrgency])
-      .interpolator(d3.interpolateRgb('#22c55e', '#dc2626')) // Green to red
+      .interpolator(d3.interpolateRgb('#fecaca', '#dc2626')) // Light red to dark red
 
     // Create a map of district names to NGO counts for current step
     const districtCountsMap = new Map()
-    ngoLocations.forEach(loc => {
-      districtCountsMap.set(loc.district, loc.ngoCount)
+    Object.keys(districtCounts).forEach(district => {
+      districtCountsMap.set(district, districtCounts[district])
     })
 
     // Find max NGO count for green blending
-    const maxCount = ngoLocations.length > 0 
-      ? Math.max(...ngoLocations.map(loc => loc.ngoCount), 1) 
+    const maxCount = Object.keys(districtCounts).length > 0
+      ? Math.max(...Object.values(districtCounts), 1) 
       : 1
+    
+    // Debug: log current step and NGO counts
+    console.log(`Step ${currentStep}: Max NGO count: ${maxCount}, Districts with NGOs: ${Object.keys(districtCounts).length}`)
 
-    // Helper function to blend base color with green based on NGO count
-    const blendWithGreen = (baseColor, ngoCount, maxNGOs) => {
-      if (ngoCount === 0) return baseColor
-      
-      // Convert hex to RGB
-      const hexToRgb = (hex) => {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-        return result ? {
-          r: parseInt(result[1], 16),
-          g: parseInt(result[2], 16),
-          b: parseInt(result[3], 16)
-        } : null
-      }
+    // Create a color scale that goes from red (base) to green (with NGOs)
+    // More NGOs = less red, more green
+    const createNGOColorScale = (baseColor, maxNGOs) => {
+      return d3.scaleSequential()
+        .domain([0, maxNGOs])
+        .interpolator(d3.interpolateRgb(baseColor, '#22c55e')) // Interpolate from red to green
+    }
 
-      const rgbToHex = (r, g, b) => {
-        return "#" + [r, g, b].map(x => {
-          const hex = Math.round(x).toString(16)
-          return hex.length === 1 ? "0" + hex : hex
-        }).join("")
-      }
-
-      const baseRgb = hexToRgb(baseColor)
-      if (!baseRgb) return baseColor
-
-      // Green color to blend with (#22c55e = rgb(34, 197, 94))
-      const greenRgb = { r: 34, g: 197, b: 94 }
+    // Helper function to get final color - shifts from red to green based on NGO count
+    // At maximum NGOs, should be fully green
+    const getColorWithGradient = (baseColor, ngoCount, maxNGOs) => {
+      if (ngoCount === 0 || maxNGOs === 0) return baseColor
       
-      // Calculate blend factor based on NGO count (0 to 1)
-      // Increase blend intensity - more NGOs = stronger green tint
-      const blendFactor = Math.min(ngoCount / Math.max(maxNGOs, 1), 1) * 0.8 // Max 80% green blend
+      // Normalize NGO count to 0-1 range
+      const normalizedCount = Math.min(ngoCount / maxNGOs, 1)
       
-      // Blend colors
-      const blendedR = baseRgb.r + (greenRgb.r - baseRgb.r) * blendFactor
-      const blendedG = baseRgb.g + (greenRgb.g - baseRgb.g) * blendFactor
-      const blendedB = baseRgb.b + (greenRgb.b - baseRgb.b) * blendFactor
+      // Create a scale for this specific base color (red) to green
+      const colorScale = createNGOColorScale(baseColor, maxNGOs)
       
-      return rgbToHex(blendedR, blendedG, blendedB)
+      // Use the normalized count directly, but apply a curve for smoother transition
+      // At normalizedCount = 1 (max NGOs), we want maxNGOs value to get full green
+      const curvedValue = Math.pow(normalizedCount, 0.75) * maxNGOs
+      
+      // Ensure maximum NGOs gives us the full green color
+      const finalValue = normalizedCount >= 1 ? maxNGOs : curvedValue
+      
+      return colorScale(finalValue)
     }
 
     // Normalize district name helper
@@ -230,36 +257,100 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
       const urgency = districtUrgencyMap.get(normalizedName)
       const baseColor = urgency !== undefined 
         ? baseColorScale(urgency) 
-        : '#22c55e' // Default green for districts without data (assume low need)
+        : '#fecaca' // Default light red for districts without data
       
-      // Get NGO count for current step
+      // Get NGO count for current step - use fresh data from districtCountsMap
       const ngoCount = districtCountsMap.get(normalizedName) || 0
       
-      // Blend base color with green based on NGO count
-      return blendWithGreen(baseColor, ngoCount, maxCount)
+      // Get color with gradient - more NGOs = more green
+      return getColorWithGradient(baseColor, ngoCount, maxCount)
     }
 
     // Draw district boundaries with colors: base (urgency) + green blend (NGO count)
-    const districtPaths = svg.selectAll('path.district')
+    // Force complete redraw to ensure colors update
+    svg.selectAll('path.district')
       .data(geojson.features)
-    
-    // Update existing paths - this ensures colors update when step changes
-    districtPaths
-      .attr('fill', getDistrictColor)
-    
-    // Enter new paths
-    districtPaths.enter()
+      .enter()
       .append('path')
       .attr('class', 'district')
       .attr('d', path)
-      .attr('fill', getDistrictColor)
+      .attr('fill', d => {
+        // Calculate color directly here to ensure it's fresh
+        const props = d.properties
+        const normalizedName = props.normalized_name || normalizeName(
+          props.NAME || props.DISTRICT || props.name || props.district || ''
+        )
+        
+        // Get base color from urgency/need score
+        const urgency = districtUrgencyMap.get(normalizedName)
+        const baseColor = urgency !== undefined 
+          ? baseColorScale(urgency) 
+          : '#fecaca' // Default light red
+        
+        // Get NGO count for current step
+        const ngoCount = districtCountsMap.get(normalizedName) || 0
+        
+        // Get color with gradient - more NGOs = more green
+        return getColorWithGradient(baseColor, ngoCount, maxCount)
+      })
       .attr('stroke', '#ffffff')
       .attr('stroke-width', 0.5)
       .attr('opacity', 0.8)
 
+    // Get district centroids and create marker locations
+    const markerLocations = []
+    Object.keys(districtCounts).forEach(districtName => {
+      const feature = geojson.features.find(f => {
+        const props = f.properties
+        const normalizedName = props.normalized_name || normalizeDistrictName(
+          props.NAME || props.DISTRICT || props.name || props.district || ''
+        )
+        return normalizedName === districtName
+      })
+
+      if (feature) {
+        // Calculate centroid
+        let allCoords = []
+        const geomType = feature.geometry.type
+        
+        if (geomType === 'Polygon') {
+          allCoords = feature.geometry.coordinates[0] || []
+        } else if (geomType === 'MultiPolygon') {
+          feature.geometry.coordinates.forEach(polygon => {
+            if (polygon && polygon[0]) {
+              allCoords = allCoords.concat(polygon[0])
+            }
+          })
+        }
+        
+        if (allCoords && allCoords.length > 0) {
+          let lngSum = 0
+          let latSum = 0
+          let count = 0
+
+          allCoords.forEach(coord => {
+            if (Array.isArray(coord) && coord.length >= 2 && typeof coord[0] === 'number') {
+              lngSum += coord[0]
+              latSum += coord[1]
+              count++
+            }
+          })
+
+          if (count > 0) {
+            markerLocations.push({
+              district: districtName,
+              lng: lngSum / count,
+              lat: latSum / count,
+              ngoCount: districtCounts[districtName]
+            })
+          }
+        }
+      }
+    })
+
     // Draw blue dots for NGO locations
     const markerGroups = svg.selectAll('g.marker-group')
-      .data(ngoLocations)
+      .data(markerLocations)
       .enter()
       .append('g')
       .attr('class', 'marker-group')
@@ -325,7 +416,7 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
     return () => {
       window.removeEventListener('resize', handleResize)
     }
-  }, [geojson, ngoLocations, ngoRegionScores, currentStep])
+  }, [geojson, ngoRegionScores, currentStep])
 
   if (!geojson) {
     return (
@@ -370,20 +461,20 @@ const NGOLocationsMap = ({ ngoRegionScores, geojson }) => {
         <div className="mb-3">
           <div className="text-xs font-semibold text-gray-700 mb-2">Base Color (Need Score)</div>
           <div className="flex items-center space-x-2 mb-1">
-            <div className="w-6 h-4 rounded" style={{ background: '#22c55e', border: '1px solid #ccc' }}></div>
-            <span className="text-xs text-gray-600 flex-1">Low Need</span>
+            <div className="w-6 h-4 rounded" style={{ background: '#fecaca', border: '1px solid #ccc' }}></div>
+            <span className="text-xs text-gray-600 flex-1">Low Need (Light Red)</span>
           </div>
           <div className="flex items-center space-x-2 mb-1">
             <div className="flex-1 h-4 rounded" style={{ 
-              background: 'linear-gradient(to right, #22c55e, #dc2626)' 
+              background: 'linear-gradient(to right, #fecaca, #dc2626)' 
             }}></div>
           </div>
           <div className="flex items-center space-x-2 mb-2">
             <div className="w-6 h-4 rounded" style={{ background: '#dc2626', border: '1px solid #ccc' }}></div>
-            <span className="text-xs text-gray-600 flex-1">High Need</span>
+            <span className="text-xs text-gray-600 flex-1">High Need (Dark Red)</span>
           </div>
           <div className="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-200">
-            + More NGOs = More Green added
+            More NGOs = Less Red, More Green
           </div>
         </div>
 
