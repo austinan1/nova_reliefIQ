@@ -21,8 +21,8 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
 
     // Create projection for Nepal
     const projection = d3.geoMercator()
-      .center([84.1240, 28.3949]) // Nepal center
-      .scale(3000)
+      .center([86.4240, 26.3949]) // Nepal center
+      .scale(3500) // Increased scale for more zoom
       .translate([width / 2, height / 2])
 
     const path = d3.geoPath().projection(projection)
@@ -191,6 +191,10 @@ const MapView = ({ geojson, data, selectedNGO, onDistrictClick, selectedDistrict
           onDistrictClick(districtData)
         }
       })
+
+    // Apply initial zoom transform to zoom in on start (after districts are drawn)
+    const initialZoom = d3.zoomIdentity.scale(1.5).translate(0, 0)
+    svg.call(zoom.transform, initialZoom)
 
     // Highlight selected district (override top 5 styling)
     if (selectedDistrict) {
