@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import RecoveryTimeline from './RecoveryTimeline'
 
 const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
   // Calculate summary statistics
@@ -139,6 +140,13 @@ const AllEffortsSummary = ({ ngoRegionScores, districts, ngos, geojson }) => {
             Overview of all NGO-district assignments and coverage
           </p>
         </div>
+
+        {/* 5-Year Recovery Timeline Simulation */}
+        <RecoveryTimeline
+          geojson={geojson}
+          districts={districts}
+          ngoRegionScores={ngoRegionScores}
+        />
 
         {/* Overall Statistics */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
