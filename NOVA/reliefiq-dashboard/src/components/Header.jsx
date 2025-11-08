@@ -37,10 +37,17 @@ const Header = ({ ngos, selectedNGO, onSelectNGO, currentPage, onPageChange }) =
     <header className="bg-white shadow-lg border-b border-gray-200 px-6 py-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <h1 className="text-3xl font-bold text-primary-600">
-            🚨 ReliefIQ
-          </h1>
-          <span className="text-gray-500 text-sm">Nepal Disaster Response Dashboard</span>
+          <img 
+            src="/logo.png" 
+            alt="ReliefIQ Logo" 
+            className="h-12 w-auto"
+          />
+          <div className="flex flex-col">
+            <h1 className="text-3xl font-bold text-primary-600">
+              ReliefIQ
+            </h1>
+            <span className="text-gray-500 text-sm">Nepal Disaster Response Dashboard</span>
+          </div>
         </div>
         <div className="flex items-center space-x-4">
           {/* Navigation Buttons */}
