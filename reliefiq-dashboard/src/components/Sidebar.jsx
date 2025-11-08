@@ -34,7 +34,8 @@ const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen }) => {
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed right-0 top-0 h-full w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+          className="fixed right-0 w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+          style={{ height: 'calc(100vh - 80px)', top: '80px' }}
         >
           <div className="p-6">
             <div className="flex items-center justify-between mb-6">

@@ -3,7 +3,7 @@ import { loadData, getMergedDataForNGO } from './utils/dataLoader'
 import Header from './components/Header'
 import MapView from './components/MapView'
 import Sidebar from './components/Sidebar'
-import StatsPanel from './components/StatsPanel'
+import TopRegionsSummary from './components/TopRegionsSummary'
 import ChatAssistant from './components/ChatAssistant'
 import './styles/global.css'
 
@@ -117,25 +117,27 @@ function App() {
       />
       
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Side - Map and Stats */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 p-4">
-            <MapView
-              geojson={data.geojson}
-              data={mergedData}
-              selectedNGO={selectedNGO}
-              onDistrictClick={setSelectedDistrict}
-              selectedDistrict={selectedDistrict}
-            />
-          </div>
-          
-          {/* Stats Panel */}
-          <div className="p-4 pt-0">
-            <StatsPanel data={mergedData} selectedNGO={selectedNGO} />
-          </div>
+        {/* Left Side - Map */}
+        <div className="flex-1 p-4">
+          <MapView
+            geojson={data.geojson}
+            data={mergedData}
+            selectedNGO={selectedNGO}
+            onDistrictClick={setSelectedDistrict}
+            selectedDistrict={selectedDistrict}
+          />
         </div>
 
-        {/* Right Side - Sidebar */}
+        {/* Right Side - Top 5 Best Fit Regions Summary */}
+        <div className="w-96 border-l border-gray-200 p-4 bg-gray-50">
+          <TopRegionsSummary
+            data={mergedData}
+            selectedNGO={selectedNGO}
+            onDistrictClick={setSelectedDistrict}
+          />
+        </div>
+
+        {/* District Details Sidebar (overlay) */}
         {selectedDistrictData && (
           <Sidebar
             district={selectedDistrictData.district}
