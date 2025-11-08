@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar'
 import TopRegionsSummary from './components/TopRegionsSummary'
 import ChatAssistant from './components/ChatAssistant'
 import AllEffortsSummary from './components/AllEffortsSummary'
+import VIPView from './components/VIPView'
 import './styles/global.css'
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentPage, setCurrentPage] = useState('dashboard') // 'dashboard' or 'summary'
+  const [platform, setPlatform] = useState('standard') // 'standard' or 'vip'
 
   console.log('App rendering - loading:', loading, 'error:', error, 'data:', !!data)
 
@@ -69,13 +71,42 @@ function App() {
     }
   }, [data, selectedNGO])
 
+  // If VIP platform is selected, show VIP view (doesn't need data to load)
+  if (platform === 'vip') {
+    return (
+      <div className="app h-screen flex flex-col">
+        <Header
+          ngos={data?.ngos || []}
+          selectedNGO={selectedNGO}
+          onSelectNGO={setSelectedNGO}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          platform={platform}
+          onPlatformChange={setPlatform}
+        />
+        <VIPView />
+      </div>
+    )
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 text-lg">Loading dashboard data...</p>
-          <p className="text-gray-500 text-sm mt-2">Please wait while we load the data files...</p>
+      <div className="app h-screen flex flex-col bg-gray-50">
+        <Header
+          ngos={[]}
+          selectedNGO={null}
+          onSelectNGO={setSelectedNGO}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          platform={platform}
+          onPlatformChange={setPlatform}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+            <p className="text-gray-600 text-lg">Loading dashboard data...</p>
+            <p className="text-gray-500 text-sm mt-2">Please wait while we load the data files...</p>
+          </div>
         </div>
       </div>
     )
@@ -83,11 +114,22 @@ function App() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Data</h2>
-          <p className="text-gray-700 mb-4">{error}</p>
-          <p className="text-sm text-gray-500">Please ensure all data files are in the correct location.</p>
+      <div className="app h-screen flex flex-col bg-gray-50">
+        <Header
+          ngos={[]}
+          selectedNGO={null}
+          onSelectNGO={setSelectedNGO}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          platform={platform}
+          onPlatformChange={setPlatform}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Error Loading Data</h2>
+            <p className="text-gray-700 mb-4">{error}</p>
+            <p className="text-sm text-gray-500">Please ensure all data files are in the correct location.</p>
+          </div>
         </div>
       </div>
     )
@@ -95,10 +137,21 @@ function App() {
 
   if (!data) {
     return (
-      <div className="flex items-center justify-center h-screen bg-gray-50">
-        <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
-          <h2 className="text-2xl font-bold text-gray-800 mb-4">No Data Available</h2>
-          <p className="text-gray-700">Unable to load dashboard data.</p>
+      <div className="app h-screen flex flex-col bg-gray-50">
+        <Header
+          ngos={[]}
+          selectedNGO={null}
+          onSelectNGO={setSelectedNGO}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          platform={platform}
+          onPlatformChange={setPlatform}
+        />
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center bg-white rounded-xl shadow-lg p-8 max-w-md">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">No Data Available</h2>
+            <p className="text-gray-700">Unable to load dashboard data.</p>
+          </div>
         </div>
       </div>
     )
@@ -118,6 +171,8 @@ function App() {
         onSelectNGO={setSelectedNGO}
         currentPage={currentPage}
         onPageChange={setCurrentPage}
+        platform={platform}
+        onPlatformChange={setPlatform}
       />
       
       {currentPage === 'dashboard' ? (
