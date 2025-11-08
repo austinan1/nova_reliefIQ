@@ -1,12 +1,49 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { generatePlan } from '../utils/aiClient'
+import { generatePlan, generatePriorityAidCategories } from '../utils/aiClient'
 import InlineRouteMap from './InlineRouteMap'
 
 const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen, geojson }) => {
   const [plan, setPlan] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [aidCategories, setAidCategories] = useState(null)
+  const [categoriesLoading, setCategoriesLoading] = useState(false)
+  const [categoriesError, setCategoriesError] = useState(null)
+
+  // Color mapping for categories
+  const categoryColors = [
+    { bg: 'bg-red-100', border: 'border-red-600', text: 'text-red-800', textLight: 'text-red-600' },
+    { bg: 'bg-blue-100', border: 'border-blue-600', text: 'text-blue-800', textLight: 'text-blue-600' },
+    { bg: 'bg-green-100', border: 'border-green-600', text: 'text-green-800', textLight: 'text-green-600' }
+  ]
+
+  // Generate personalized aid categories when district changes
+  useEffect(() => {
+    if (district && districtData && isOpen) {
+      setCategoriesLoading(true)
+      setCategoriesError(null)
+      setAidCategories(null)
+
+      generatePriorityAidCategories(district, districtData, geojson)
+        .then(categories => {
+          setAidCategories(categories)
+        })
+        .catch(err => {
+          console.error('Error generating aid categories:', err)
+          setCategoriesError(err.message || 'Failed to generate categories')
+          // Fallback to default categories
+          setAidCategories([
+            { name: 'Emergency Shelter', reason: 'High priority due to damage' },
+            { name: 'Water & Sanitation', reason: 'Critical infrastructure needs' },
+            { name: 'Food Distribution', reason: 'Food security concerns' }
+          ])
+        })
+        .finally(() => {
+          setCategoriesLoading(false)
+        })
+    }
+  }, [district, districtData, isOpen, geojson])
 
   const handleGeneratePlan = async () => {
     if (!district || !selectedNGO || !districtData) return
@@ -35,7 +72,7 @@ const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen, geojson
           animate={{ x: 0 }}
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-          className="fixed right-0 w-96 bg-white shadow-2xl z-50 overflow-y-auto"
+          className="fixed right-0 w-[600px] bg-white shadow-2xl z-50 overflow-y-auto"
           style={{ height: 'calc(100vh - 80px)', top: '80px' }}
         >
           <div className="p-6">
@@ -127,20 +164,29 @@ const Sidebar = ({ district, districtData, selectedNGO, onClose, isOpen, geojson
             {/* Top 3 Aid Categories */}
             <div className="mt-6">
               <h3 className="text-lg font-bold text-gray-800 mb-3">🎯 Priority Aid Categories</h3>
-              <div className="space-y-2">
-                <div className="bg-red-100 rounded-lg p-3 border-l-4 border-red-600">
-                  <div className="font-semibold text-red-800">1. Emergency Shelter</div>
-                  <div className="text-sm text-red-600">High priority due to damage</div>
+              {categoriesLoading && (
+                <div className="text-sm text-gray-500 italic">Generating personalized categories...</div>
+              )}
+              {categoriesError && !aidCategories && (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                  <p className="text-yellow-800 text-sm">{categoriesError}</p>
                 </div>
-                <div className="bg-blue-100 rounded-lg p-3 border-l-4 border-blue-600">
-                  <div className="font-semibold text-blue-800">2. Water & Sanitation</div>
-                  <div className="text-sm text-blue-600">Critical infrastructure needs</div>
+              )}
+              {aidCategories && (
+                <div className="space-y-2">
+                  {aidCategories.map((category, index) => {
+                    const colors = categoryColors[index] || categoryColors[0]
+                    return (
+                      <div key={index} className={`${colors.bg} rounded-lg p-3 border-l-4 ${colors.border}`}>
+                        <div className={`font-semibold ${colors.text}`}>
+                          {index + 1}. {category.name}
+                        </div>
+                        <div className={`text-sm ${colors.textLight}`}>{category.reason}</div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <div className="bg-green-100 rounded-lg p-3 border-l-4 border-green-600">
-                  <div className="font-semibold text-green-800">3. Food Distribution</div>
-                  <div className="text-sm text-green-600">Food security concerns</div>
-                </div>
-              </div>
+              )}
             </div>
           </div>
         </motion.aside>

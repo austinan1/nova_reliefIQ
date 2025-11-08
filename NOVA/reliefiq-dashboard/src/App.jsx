@@ -135,7 +135,7 @@ function App() {
             </div>
 
             {/* Right Side - Top 5 Best Fit Regions Summary */}
-            <div className="w-96 border-l border-gray-200 p-4 bg-gray-50">
+            <div className="w-[600px] border-l border-gray-200 p-4 bg-gray-50">
               <TopRegionsSummary
                 data={mergedData}
                 selectedNGO={selectedNGO}
